@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NutriPlan App</title>
+    <title>Rutina App</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
     <header>
-        <h1 id="app-title">Plan Nutricional</h1>
+        <h1 id="app-title">RUTINA</h1>
         <div class="week-selector">
             <button id="prev-week"><i class="fas fa-chevron-left"></i></button>
             <span id="current-week-label">Cargando...</span>
@@ -21,7 +21,9 @@
     <main>
         <section class="card breakfast-card">
             <h3><i class="fas fa-coffee"></i> Desayunos (Elige uno)</h3>
-            <ul id="breakfast-list"></ul>
+            <ul id="breakfast-list">
+                <li>Cargando opciones...</li>
+            </ul>
         </section>
 
         <div class="tabs">
@@ -35,17 +37,17 @@
 
         <div id="shopping-view" class="tab-content">
             <div class="card">
-                <h3>Lista de la Semana</h3>
+                <h3>Lista Semanal</h3>
                 <ul id="shopping-list" class="checklist"></ul>
             </div>
             <div class="card">
-                <h3>Básicos de Despensa</h3>
+                <h3>Básicos Despensa</h3>
                 <ul class="checklist">
                     <li><input type="checkbox"> Aceite Oliva Virgen Extra</li>
-                    <li><input type="checkbox"> Nueces / Almendras</li>
-                    <li><input type="checkbox"> Latas (Atún, Sardinas)</li>
+                    <li><input type="checkbox"> Sal / Especias / Vinagre</li>
                     <li><input type="checkbox"> Café / Té</li>
-                    <li><input type="checkbox"> Huevos (Muchas docenas)</li>
+                    <li><input type="checkbox"> Huevos (Base)</li>
+                    <li><input type="checkbox"> Latas (Atún/Sardinas)</li>
                 </ul>
             </div>
         </div>
