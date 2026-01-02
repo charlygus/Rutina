@@ -1,6 +1,5 @@
-// 👇👇👇 AQUÍ ES DONDE TIENES QUE PEGAR TU CÓDIGO 👇👇👇
+// 👇 TU ID YA ESTÁ PUESTO AQUÍ 👇
 const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
-// 👆👆👆 Borra lo de dentro de las comillas y pon tu ID (ej: 1BxiMM...)
 
 let menuData = [];
 let shoppingData = [];
@@ -8,15 +7,10 @@ let breakfastData = [];
 let currentWeek = 1;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verificación de seguridad por si se te olvida poner el ID
-    if(SHEET_ID === '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4') {
-        alert("¡Alto ahí! 🛑 Falta poner el ID de tu Google Sheet en la primera línea del archivo script.js");
-        return;
-    }
+    // HE BORRADO EL BLOQUE "IF" QUE DABA PROBLEMAS
     
     await loadData();
     
-    // Configurar botones de semana anterior/siguiente
     document.getElementById('prev-week').addEventListener('click', () => changeWeek(-1));
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
@@ -25,11 +19,11 @@ async function loadData() {
     try {
         document.getElementById('current-week-label').textContent = "Sincronizando...";
         
-        // 1. Cargar Menú
+        // 1. Cargar Menú (Con tilde, como tú querías)
         const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menú`);
         menuData = await menuRes.json();
 
-        // 2. Cargar Compra (Ahora buscará la columna 'producto')
+        // 2. Cargar Compra (Busca la columna 'producto')
         const shopRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Compra`);
         shoppingData = await shopRes.json();
 
@@ -37,21 +31,21 @@ async function loadData() {
         const breakRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Desayunos`);
         breakfastData = await breakRes.json();
 
-        // Si todo va bien, pintamos la pantalla
+        // Renderizar
         renderWeek(currentWeek);
         renderShopping(currentWeek);
         renderBreakfasts();
 
     } catch (error) {
         console.error(error);
-        document.getElementById('current-week-label').textContent = "Error de conexión";
-        alert('No se pueden leer los datos. Asegúrate de:\n1. Que el ID es correcto.\n2. Que la hoja está "Publicada en la web".');
+        document.getElementById('current-week-label').textContent = "Error";
+        // Si falla, muestra el error real en la consola o alerta
+        alert('Error conectando. Verifica que la hoja "Rutina" está publicada en la web (Archivo > Compartir > Publicar en la web).');
     }
 }
 
 function changeWeek(direction) {
     let newWeek = currentWeek + direction;
-    // Comprobamos si existen datos para esa nueva semana
     const hasData = menuData.some(row => row.semana == newWeek);
     
     if (hasData) {
@@ -66,11 +60,14 @@ function renderWeek(weekNum) {
     const container = document.getElementById('days-container');
     container.innerHTML = '';
 
-    // Filtramos los días de la semana actual
     const weekDays = menuData.filter(row => row.semana == weekNum);
 
+    if (weekDays.length === 0) {
+        container.innerHTML = '<p style="text-align:center; padding:20px;">No hay menú para esta semana en el Excel.</p>';
+        return;
+    }
+
     weekDays.forEach(day => {
-        // Detectamos si es día trampa (cheat) para ponerle estrellita o color diferente
         const isCheat = day.tipo && day.tipo.toLowerCase().includes('cheat');
         const html = `
             <div class="day-item">
@@ -103,7 +100,7 @@ function renderShopping(weekNum) {
     if(items.length === 0) list.innerHTML = '<li>Sin datos de compra para esta semana</li>';
 
     items.forEach(obj => {
-        // ⚠️ AQUÍ ESTÁ EL CAMBIO: Usamos obj.producto en vez de obj.item
+        // Usa 'producto' como pediste
         list.innerHTML += `<li><input type="checkbox"> ${obj.producto}</li>`;
     });
 }
@@ -116,7 +113,6 @@ function renderBreakfasts() {
     });
 }
 
-// Función para cambiar entre pestañas (Menú / Compra)
 window.showTab = function(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
