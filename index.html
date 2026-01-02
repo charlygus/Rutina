@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriPlan App</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <header>
+        <h1 id="app-title">Plan Nutricional</h1>
+        <div class="week-selector">
+            <button id="prev-week"><i class="fas fa-chevron-left"></i></button>
+            <span id="current-week-label">Cargando...</span>
+            <button id="next-week"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </header>
+
+    <main>
+        <section class="card breakfast-card">
+            <h3><i class="fas fa-coffee"></i> Desayunos (Elige uno)</h3>
+            <ul id="breakfast-list"></ul>
+        </section>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('menu')">🍽️ Menú</button>
+            <button class="tab-btn" onclick="showTab('shopping')">🛒 Compra</button>
+        </div>
+
+        <div id="menu-view" class="tab-content active">
+            <div id="days-container"></div>
+        </div>
+
+        <div id="shopping-view" class="tab-content">
+            <div class="card">
+                <h3>Lista de la Semana</h3>
+                <ul id="shopping-list" class="checklist"></ul>
+            </div>
+            <div class="card">
+                <h3>Básicos de Despensa</h3>
+                <ul class="checklist">
+                    <li><input type="checkbox"> Aceite Oliva Virgen Extra</li>
+                    <li><input type="checkbox"> Nueces / Almendras</li>
+                    <li><input type="checkbox"> Latas (Atún, Sardinas)</li>
+                    <li><input type="checkbox"> Café / Té</li>
+                    <li><input type="checkbox"> Huevos (Muchas docenas)</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
