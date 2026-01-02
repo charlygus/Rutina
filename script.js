@@ -1,4 +1,4 @@
-// 👇 TU ID (No lo toques si ya es el correcto) 👇
+// 👇 TU ID ESTÁ AQUÍ (NO LO TOQUES)
 const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
 
 let menuData = [];
@@ -14,32 +14,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadData() {
+    const label = document.getElementById('current-week-label');
+    const container = document.getElementById('days-container');
+    
     try {
-        const label = document.getElementById('current-week-label');
         label.textContent = "Cargando...";
         
-        // 1. Cargar Menú (Apunta a 'Menu' sin tilde)
-        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menu`);
-        if (!menuRes.ok) throw new Error("Fallo al cargar la pestaña Menu");
+        // 1. Cargar MENÚ (Ahora buscamos la pestaña 'Platos')
+        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Platos`);
+        if (!menuRes.ok) throw new Error("No encuentro la pestaña 'Platos'");
         menuData = await menuRes.json();
+        
+        // Comprobación de que hay datos
+        if (menuData.error) throw new Error(menuData.error);
 
-        // 2. Cargar Compra
+        // 2. Cargar COMPRA
         const shopRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Compra`);
-        if (!shopRes.ok) throw new Error("Fallo al cargar la pestaña Compra");
+        if (!shopRes.ok) throw new Error("No encuentro la pestaña 'Compra'");
         shoppingData = await shopRes.json();
 
-        // 3. Cargar Desayunos
+        // 3. Cargar DESAYUNOS
         const breakRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Desayunos`);
-        breakfastData = await breakRes.json();
+        breakfastData = await breakRes.json(); // Si falla Desayunos no es crítico, pero avisará
 
-        // Renderizar
+        // SI LLEGAMOS AQUÍ, TODO ESTÁ BIEN
         renderWeek(currentWeek);
         renderShopping(currentWeek);
         renderBreakfasts();
 
     } catch (error) {
         console.error(error);
-        alert(`❌ ERROR: ${error.message}\n\nAsegúrate de:\n1. Que la pestaña se llame "Menu" (sin tilde).\n2. Que la Fila 1 sea: semana, dia, comida, cena, tipo (en minúsculas).`);
+        label.textContent = "Error ❌";
+        
+        // Muestra el error en la pantalla del móvil para que lo leas
+        container.innerHTML = `
+            <div style="background:#ffebee; color:#c62828; padding:20px; border-radius:10px; text-align:center;">
+                <h3>¡Ups! Algo falla</h3>
+                <p><strong>El error es:</strong> ${error.message}</p>
+                <hr style="border:0; border-top:1px solid #e57373; margin:10px 0;">
+                <p style="font-size:0.9em">
+                    1. ¿Has renombrado la pestaña del Excel a <b>Platos</b>?<br>
+                    2. ¿Has esperado 1 minuto tras el cambio?<br>
+                    3. Verifica la Fila 1: <i>semana, dia, comida...</i>
+                </p>
+            </div>
+        `;
     }
 }
 
@@ -61,38 +80,31 @@ function renderWeek(weekNum) {
     const weekDays = menuData.filter(row => row.semana == weekNum);
 
     if (weekDays.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px;">⚠️ No hay datos.<br>Revisa que la columna "semana" en el Excel tenga el número correcto.</div>';
+        container.innerHTML = '<div style="text-align:center; padding:20px;">No hay datos para la Semana ' + weekNum + '</div>';
         return;
     }
 
     weekDays.forEach(day => {
-        // Diagnóstico: Si sale "undefined", es que el título en Excel tiene mayúsculas
-        if(!day.comida && !day.Comida) {
-            container.innerHTML = `<div style="padding:10px; color:red;">ERROR DE DATOS:<br>No encuentro la columna 'comida'.<br>En tu Excel, la Fila 1 debe decir 'comida' (en minúsculas).</div>`;
-            return;
-        }
-
-        // Truco: Leemos 'comida' O 'Comida' por si acaso se te escapó una mayúscula
-        const comidaText = day.comida || day.Comida;
-        const cenaText = day.cena || day.Cena;
-        const diaText = day.dia || day.Dia || day.Día;
-        
-        const isCheat = (day.tipo && day.tipo.toLowerCase().includes('cheat'));
+        // Leemos las columnas aunque tengan mayúsculas por error
+        const comida = day.comida || day.Comida || "Falta columna 'comida'";
+        const cena = day.cena || day.Cena || "Falta columna 'cena'";
+        const dia = day.dia || day.Dia || day.Día || "Día?";
+        const isCheat = day.tipo && day.tipo.toLowerCase().includes('cheat');
         
         const html = `
             <div class="day-item">
                 <div class="day-header ${isCheat ? 'cheat-day' : ''}">
-                    <span>${diaText}</span>
+                    <span>${dia}</span>
                     ${isCheat ? '<i class="fas fa-star"></i>' : ''}
                 </div>
                 <div class="day-body">
                     <div class="meal-row">
                         <span class="meal-label">Comida</span>
-                        <div class="meal-text">${comidaText}</div>
+                        <div class="meal-text">${comida}</div>
                     </div>
                     <div class="meal-row">
                         <span class="meal-label">Cena</span>
-                        <div class="meal-text">${cenaText}</div>
+                        <div class="meal-text">${cena}</div>
                     </div>
                 </div>
             </div>
@@ -109,15 +121,21 @@ function renderShopping(weekNum) {
     if(items.length === 0) list.innerHTML = '<li>Sin datos de compra</li>';
 
     items.forEach(obj => {
-        // Leemos 'producto' O 'item' O 'Producto'
-        const prod = obj.producto || obj.item || obj.Producto;
+        const prod = obj.producto || obj.item || obj.Producto || "Sin nombre";
         list.innerHTML += `<li><input type="checkbox"> ${prod}</li>`;
     });
 }
 
 function renderBreakfasts() {
     const list = document.getElementById('breakfast-list');
+    if(!list) return;
     list.innerHTML = '';
+    
+    if(!breakfastData || breakfastData.length === 0) {
+        list.innerHTML = '<li>Cargando...</li>';
+        return;
+    }
+    
     breakfastData.forEach(row => {
         list.innerHTML += `<li><strong>${row.opcion}:</strong> ${row.descripcion}</li>`;
     });
