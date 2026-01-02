@@ -1,5 +1,5 @@
 // 👇👇👇 AQUÍ ES DONDE TIENES QUE PEGAR TU CÓDIGO 👇👇👇
-const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4/edit?gid=0#gid=0'; 
+const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4'; 
 // 👆👆👆 Borra lo de dentro de las comillas y pon tu ID (ej: 1BxiMM...)
 
 let menuData = [];
