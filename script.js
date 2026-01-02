@@ -26,7 +26,7 @@ async function loadData() {
         document.getElementById('current-week-label').textContent = "Sincronizando...";
         
         // 1. Cargar Menú
-        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menu`);
+        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menú`);
         menuData = await menuRes.json();
 
         // 2. Cargar Compra (Ahora buscará la columna 'producto')
