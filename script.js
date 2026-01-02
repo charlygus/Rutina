@@ -9,7 +9,7 @@ let currentWeek = 1;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Verificación de seguridad por si se te olvida poner el ID
-    if(SHEET_ID === 'PEGAR_TU_CODIGO_LARGO_AQUI') {
+    if(SHEET_ID === '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4') {
         alert("¡Alto ahí! 🛑 Falta poner el ID de tu Google Sheet en la primera línea del archivo script.js");
         return;
     }
