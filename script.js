@@ -1,6 +1,6 @@
-// 👇👇👇 ¡PEGA AQUÍ TU ID DE GOOGLE SHEETS! 👇👇👇
-const SHEET_ID = 'TU_CODIGO_LARGO_AQUI'; 
-// 👆👆👆 (Ejemplo: 1BxiMMrD...)
+// 👇👇👇 AQUÍ ES DONDE TIENES QUE PEGAR TU CÓDIGO 👇👇👇
+const SHEET_ID = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSnGqb-ydSotDIMq4tik96yRRl4-J6fBUWjC7hZOLoUwooCTlbDwmG72EToqujJUozm7mo1g3S-Wlqc/pubhtml'; 
+// 👆👆👆 Borra lo de dentro de las comillas y pon tu ID (ej: 1BxiMM...)
 
 let menuData = [];
 let shoppingData = [];
@@ -8,14 +8,15 @@ let breakfastData = [];
 let currentWeek = 1;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if(SHEET_ID === 'TU_CODIGO_LARGO_AQUI') {
-        alert("¡Ojo! No has puesto el ID de tu Google Sheet en el archivo script.js");
+    // Verificación de seguridad por si se te olvida poner el ID
+    if(SHEET_ID === 'PEGAR_TU_CODIGO_LARGO_AQUI') {
+        alert("¡Alto ahí! 🛑 Falta poner el ID de tu Google Sheet en la primera línea del archivo script.js");
         return;
     }
     
     await loadData();
     
-    // Listeners
+    // Configurar botones de semana anterior/siguiente
     document.getElementById('prev-week').addEventListener('click', () => changeWeek(-1));
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
@@ -28,7 +29,7 @@ async function loadData() {
         const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menu`);
         menuData = await menuRes.json();
 
-        // 2. Cargar Compra
+        // 2. Cargar Compra (Ahora buscará la columna 'producto')
         const shopRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Compra`);
         shoppingData = await shopRes.json();
 
@@ -36,21 +37,21 @@ async function loadData() {
         const breakRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Desayunos`);
         breakfastData = await breakRes.json();
 
-        // Renderizar todo
+        // Si todo va bien, pintamos la pantalla
         renderWeek(currentWeek);
         renderShopping(currentWeek);
         renderBreakfasts();
 
     } catch (error) {
         console.error(error);
-        document.getElementById('current-week-label').textContent = "Error";
-        alert('Error cargando datos. Revisa el ID y que la hoja esté "Publicada en la web".');
+        document.getElementById('current-week-label').textContent = "Error de conexión";
+        alert('No se pueden leer los datos. Asegúrate de:\n1. Que el ID es correcto.\n2. Que la hoja está "Publicada en la web".');
     }
 }
 
 function changeWeek(direction) {
     let newWeek = currentWeek + direction;
-    // Comprobamos si esa semana existe en los datos
+    // Comprobamos si existen datos para esa nueva semana
     const hasData = menuData.some(row => row.semana == newWeek);
     
     if (hasData) {
@@ -65,9 +66,11 @@ function renderWeek(weekNum) {
     const container = document.getElementById('days-container');
     container.innerHTML = '';
 
+    // Filtramos los días de la semana actual
     const weekDays = menuData.filter(row => row.semana == weekNum);
 
     weekDays.forEach(day => {
+        // Detectamos si es día trampa (cheat) para ponerle estrellita o color diferente
         const isCheat = day.tipo && day.tipo.toLowerCase().includes('cheat');
         const html = `
             <div class="day-item">
@@ -100,7 +103,8 @@ function renderShopping(weekNum) {
     if(items.length === 0) list.innerHTML = '<li>Sin datos de compra para esta semana</li>';
 
     items.forEach(obj => {
-        list.innerHTML += `<li><input type="checkbox"> ${obj.item}</li>`;
+        // ⚠️ AQUÍ ESTÁ EL CAMBIO: Usamos obj.producto en vez de obj.item
+        list.innerHTML += `<li><input type="checkbox"> ${obj.producto}</li>`;
     });
 }
 
@@ -112,6 +116,7 @@ function renderBreakfasts() {
     });
 }
 
+// Función para cambiar entre pestañas (Menú / Compra)
 window.showTab = function(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
