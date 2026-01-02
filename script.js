@@ -1,4 +1,4 @@
-// 👇 TU ID ESTÁ AQUÍ (NO LO TOQUES)
+// 👇 TU ID (CONFIRMADO QUE ES ESTE)
 const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
 
 let menuData = [];
@@ -19,43 +19,39 @@ async function loadData() {
     
     try {
         label.textContent = "Cargando...";
-        
-        // 1. Cargar MENÚ (Ahora buscamos la pestaña 'Platos')
-        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Platos`);
-        if (!menuRes.ok) throw new Error("No encuentro la pestaña 'Platos'");
+
+        // 1. Cargar MENU
+        const menuRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menu`);
+        if (!menuRes.ok) throw new Error("Error cargando la pestaña 'Menu'");
         menuData = await menuRes.json();
         
-        // Comprobación de que hay datos
-        if (menuData.error) throw new Error(menuData.error);
+        // Si devuelve error interno de la hoja
+        if (menuData.error) throw new Error("La hoja 'Menu' no existe o tiene el nombre mal escrito (cuidado con los espacios).");
 
         // 2. Cargar COMPRA
         const shopRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Compra`);
-        if (!shopRes.ok) throw new Error("No encuentro la pestaña 'Compra'");
         shoppingData = await shopRes.json();
 
         // 3. Cargar DESAYUNOS
         const breakRes = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Desayunos`);
-        breakfastData = await breakRes.json(); // Si falla Desayunos no es crítico, pero avisará
+        breakfastData = await breakRes.json();
 
-        // SI LLEGAMOS AQUÍ, TODO ESTÁ BIEN
+        // Renderizar
         renderWeek(currentWeek);
         renderShopping(currentWeek);
         renderBreakfasts();
 
     } catch (error) {
         console.error(error);
-        label.textContent = "Error ❌";
-        
-        // Muestra el error en la pantalla del móvil para que lo leas
+        label.textContent = "Error";
         container.innerHTML = `
-            <div style="background:#ffebee; color:#c62828; padding:20px; border-radius:10px; text-align:center;">
-                <h3>¡Ups! Algo falla</h3>
-                <p><strong>El error es:</strong> ${error.message}</p>
-                <hr style="border:0; border-top:1px solid #e57373; margin:10px 0;">
-                <p style="font-size:0.9em">
-                    1. ¿Has renombrado la pestaña del Excel a <b>Platos</b>?<br>
-                    2. ¿Has esperado 1 minuto tras el cambio?<br>
-                    3. Verifica la Fila 1: <i>semana, dia, comida...</i>
+            <div style="padding:20px; text-align:center; color:red;">
+                <h3>⚠️ Error de conexión</h3>
+                <p>${error.message}</p>
+                <p style="font-size:0.8em; color:black;">
+                    Intenta esto:<br>
+                    1. En Google Sheets, ve a <b>Archivo > Compartir > Publicar en la web</b>.<br>
+                    2. Dale a <b>Detener</b> y luego a <b>Iniciar</b> otra vez.
                 </p>
             </div>
         `;
@@ -85,10 +81,10 @@ function renderWeek(weekNum) {
     }
 
     weekDays.forEach(day => {
-        // Leemos las columnas aunque tengan mayúsculas por error
-        const comida = day.comida || day.Comida || "Falta columna 'comida'";
-        const cena = day.cena || day.Cena || "Falta columna 'cena'";
-        const dia = day.dia || day.Dia || day.Día || "Día?";
+        // Leemos las columnas intentando corregir mayúsculas automáticamente
+        const comida = day.comida || day.Comida || "Revisar columna 'comida'";
+        const cena = day.cena || day.Cena || "Revisar columna 'cena'";
+        const dia = day.dia || day.Dia || day.Día || "";
         const isCheat = day.tipo && day.tipo.toLowerCase().includes('cheat');
         
         const html = `
@@ -121,7 +117,7 @@ function renderShopping(weekNum) {
     if(items.length === 0) list.innerHTML = '<li>Sin datos de compra</li>';
 
     items.forEach(obj => {
-        const prod = obj.producto || obj.item || obj.Producto || "Sin nombre";
+        const prod = obj.producto || obj.item || "Producto sin nombre";
         list.innerHTML += `<li><input type="checkbox"> ${prod}</li>`;
     });
 }
