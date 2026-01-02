@@ -1,5 +1,5 @@
 // 👇👇👇 AQUÍ ES DONDE TIENES QUE PEGAR TU CÓDIGO 👇👇👇
-const SHEET_ID = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSnGqb-ydSotDIMq4tik96yRRl4-J6fBUWjC7hZOLoUwooCTlbDwmG72EToqujJUozm7mo1g3S-Wlqc/pubhtml'; 
+const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4/edit?gid=0#gid=0'; 
 // 👆👆👆 Borra lo de dentro de las comillas y pon tu ID (ej: 1BxiMM...)
 
 let menuData = [];
