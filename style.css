@@ -172,3 +172,10 @@ main {
     height: 18px;
     accent-color: var(--text);
 }
+/* EFECTO TACHADO AL MARCAR */
+.checklist-minimal input:checked + label {
+    text-decoration: line-through;
+    color: #a0a0a0; /* Se pone gris para indicar que ya está listo */
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
