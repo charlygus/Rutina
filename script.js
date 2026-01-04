@@ -120,10 +120,17 @@ function renderBreakfasts() {
 }
 
 window.showTab = function(tabName) {
+    // Ocultar contenidos
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    // Desactivar botones
+    document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
+    
+    // Activar contenido seleccionado
     document.getElementById(tabName + '-view').classList.add('active');
-    const btns = document.querySelectorAll('.tab-btn');
-    if(tabName === 'menu') btns[0].classList.add('active');
-    else btns[1].classList.add('active');
+    
+    // Activar botón seleccionado (buscamos por el onclick para no liarnos con IDs)
+    // Esto es un truco rápido para que funcione con los nuevos botones
+    const buttons = document.querySelectorAll('.tab-link');
+    if(tabName === 'menu') buttons[0].classList.add('active');
+    else buttons[1].classList.add('active');
 };
