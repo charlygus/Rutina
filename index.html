@@ -3,51 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rutina App</title>
+    <title>Rutina</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <header>
-        <h1 id="app-title">RUTINA</h1>
-        <div class="week-selector">
-            <button id="prev-week"><i class="fas fa-chevron-left"></i></button>
-            <span id="current-week-label">Cargando...</span>
-            <button id="next-week"><i class="fas fa-chevron-right"></i></button>
+    <header class="minimal-header">
+        <div class="header-top">
+            <h1>Rutina</h1>
+            <div class="week-controls">
+                <button id="prev-week">←</button>
+                <span id="current-week-label">Semana...</span>
+                <button id="next-week">→</button>
+            </div>
         </div>
     </header>
 
     <main>
-        <section class="card breakfast-card">
-            <h3><i class="fas fa-coffee"></i> Desayunos (Elige uno)</h3>
-            <ul id="breakfast-list">
-                <li>Cargando opciones...</li>
+        <details class="minimal-details">
+            <summary>☕ Ideas de Desayuno</summary>
+            <ul id="breakfast-list" class="simple-list">
+                <li>Cargando...</li>
             </ul>
-        </section>
+        </details>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('menu')">🍽️ Menú</button>
-            <button class="tab-btn" onclick="showTab('shopping')">🛒 Compra</button>
+        <div class="tabs-minimal">
+            <button class="tab-link active" onclick="showTab('menu')">Menú</button>
+            <button class="tab-link" onclick="showTab('shopping')">Compra</button>
         </div>
 
         <div id="menu-view" class="tab-content active">
-            <div id="days-container"></div>
+            <div id="days-container" class="grid-layout"></div>
         </div>
 
         <div id="shopping-view" class="tab-content">
-            <div class="card">
-                <h3>Lista Semanal</h3>
-                <ul id="shopping-list" class="checklist"></ul>
+            <div class="minimal-section">
+                <h3>Lista de la compra</h3>
+                <ul id="shopping-list" class="checklist-minimal"></ul>
             </div>
-            <div class="card">
-                <h3>Básicos Despensa</h3>
-                <ul class="checklist">
-                    <li><input type="checkbox"> Aceite Oliva Virgen Extra</li>
-                    <li><input type="checkbox"> Sal / Especias / Vinagre</li>
-                    <li><input type="checkbox"> Café / Té</li>
-                    <li><input type="checkbox"> Huevos (Base)</li>
-                    <li><input type="checkbox"> Latas (Atún/Sardinas)</li>
+            
+            <div class="minimal-section">
+                <h3>Básicos</h3>
+                <ul class="checklist-minimal">
+                    <li><label><input type="checkbox"> Aceite de Oliva</label></li>
+                    <li><label><input type="checkbox"> Sal / Especias</label></li>
+                    <li><label><input type="checkbox"> Café / Té</label></li>
+                    <li><label><input type="checkbox"> Huevos</label></li>
                 </ul>
             </div>
         </div>
