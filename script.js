@@ -74,8 +74,7 @@ function renderWeek(weekNum) {
             <div class="day-item">
                 <div class="day-header ${isCheat ? 'cheat-day' : ''}">
                     <span>${dia}</span>
-                    ${isCheat ? '<span>⭐</span>' : ''}
-                </div>
+                                    </div>
                 <div class="day-body">
                     <div class="meal-row">
                         <span class="meal-label">Desayuno</span>
