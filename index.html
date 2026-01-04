@@ -5,30 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rutina</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <header class="minimal-header">
-        <div class="header-top">
-            <h1>Rutina</h1>
+        <div class="header-content">
+            <h1>RUTINA</h1>
             <div class="week-controls">
                 <button id="prev-week">←</button>
-                <span id="current-week-label">Semana...</span>
+                <span id="current-week-label">Cargando...</span>
                 <button id="next-week">→</button>
             </div>
         </div>
     </header>
 
     <main>
-       
         <div class="tabs-minimal">
             <button class="tab-link active" onclick="showTab('menu')">Menú</button>
             <button class="tab-link" onclick="showTab('shopping')">Compra</button>
         </div>
 
         <div id="menu-view" class="tab-content active">
-            <div id="days-container" class="grid-layout"></div>
+            <div id="days-container"></div>
         </div>
 
         <div id="shopping-view" class="tab-content">
@@ -38,7 +37,7 @@
             </div>
             
             <div class="minimal-section">
-                <h3>Básicos</h3>
+                <h3>Básicos Despensa</h3>
                 <ul class="checklist-minimal">
                     <li><label><input type="checkbox"> Aceite de Oliva</label></li>
                     <li><label><input type="checkbox"> Sal / Especias</label></li>
