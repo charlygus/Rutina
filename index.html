@@ -10,6 +10,7 @@
     
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
 
@@ -28,6 +29,7 @@
         <div class="tabs-minimal">
             <button class="tab-link active" onclick="showTab('menu')">Menú</button>
             <button class="tab-link" onclick="showTab('shopping')">Compra</button>
+            <button class="tab-link" onclick="showTab('weight')">Peso</button>
         </div>
 
         <div id="menu-view" class="tab-content active">
@@ -48,6 +50,30 @@
                     <li><input type="checkbox" id="b3" onchange="saveStatus('b3', this.checked)"><label for="b3"> Café / Té</label></li>
                     <li><input type="checkbox" id="b4" onchange="saveStatus('b4', this.checked)"><label for="b4"> Huevos</label></li>
                 </ul>
+            </div>
+        </div>
+
+        <div id="weight-view" class="tab-content">
+            <div class="weight-summary">
+                <div class="kpi-box">
+                    <span class="kpi-label">Último Peso</span>
+                    <span class="kpi-value" id="last-weight">-- kg</span>
+                </div>
+                <div class="kpi-box">
+                    <span class="kpi-label">Tendencia</span>
+                    <span class="kpi-value" id="weight-trend">--</span>
+                </div>
+            </div>
+
+            <div id="chart_div" class="chart-container"></div>
+
+            <div class="weight-input-section">
+                <h3>Registrar Progreso</h3>
+                <div class="input-group">
+                    <input type="number" id="weight-input" placeholder="Ej: 75.5" step="0.1">
+                    <button onclick="enviarPeso()" id="btn-save-weight">Guardar</button>
+                </div>
+                <p id="weight-msg" class="status-msg"></p>
             </div>
         </div>
     </main>
