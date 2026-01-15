@@ -1,8 +1,13 @@
-const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
+const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4'; // Tu ID de hoja para el menú
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvJCEPkvTYL8drM78COnm0cjd0EBWH1hQDpzP6jnxIgZUxDZTgYIAKd-Diuh2QxJc/exec'; // <--- ⚠️ PEGA AQUÍ TU URL
 
 let menuData = [];
 let shoppingData = [];
 let currentWeek = 1;
+
+// Carga de la librería de gráficos
+google.charts.load('current', {'packages':['corechart']});
+google.charts.setOnLoadCallback(cargarHistorialPeso);
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadData();
@@ -10,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
 
+// --- LÓGICA MENÚ Y COMPRA (Original) ---
 async function loadData() {
     const label = document.getElementById('current-week-label');
     try {
@@ -26,7 +32,7 @@ async function loadData() {
         renderShopping(currentWeek);
     } catch (e) {
         label.textContent = "Error";
-        console.error("Error al cargar Google Sheets");
+        console.error("Error al cargar Google Sheets Menú");
     }
 }
 
@@ -78,7 +84,6 @@ function renderShopping(num) {
 
     items.forEach(obj => {
         const prod = obj.producto || obj.item || "---";
-        // Generamos un ID único por semana y producto para la memoria
         const id = `shop-w${num}-${prod.replace(/\s+/g, '')}`;
         const checked = localStorage.getItem(id) === 'true';
         
@@ -92,12 +97,105 @@ function renderShopping(num) {
     loadBasics();
 }
 
-// Guarda el estado en localStorage
+// --- LÓGICA NUEVA: PESO ---
+
+// 1. Enviar Peso
+async function enviarPeso() {
+    const input = document.getElementById('weight-input');
+    const btn = document.getElementById('btn-save-weight');
+    const msg = document.getElementById('weight-msg');
+    
+    const peso = parseFloat(input.value);
+    if (!peso || peso <= 0) {
+        msg.textContent = "Introduce un peso válido";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "...";
+    msg.textContent = "Guardando...";
+
+    try {
+        // Usamos no-cors/text para evitar problemas complejos de CORS con Google Scripts
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ accion: 'guardar', peso: peso }),
+            headers: { "Content-Type": "text/plain" }
+        });
+
+        msg.textContent = "¡Guardado!";
+        input.value = '';
+        setTimeout(() => { msg.textContent = ''; }, 3000);
+        
+        // Recargar datos para actualizar gráfica
+        cargarHistorialPeso();
+
+    } catch (error) {
+        msg.textContent = "Error al guardar";
+        console.error(error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Guardar";
+    }
+}
+
+// 2. Leer y Pintar Gráfica
+async function cargarHistorialPeso() {
+    try {
+        const res = await fetch(`${SCRIPT_URL}?accion=leer`);
+        const json = await res.json();
+        
+        if (json.datos && json.datos.length > 0) {
+            actualizarKPIs(json.datos);
+            dibujarGrafico(json.datos);
+        }
+    } catch (e) {
+        console.error("Error cargando peso", e);
+    }
+}
+
+function actualizarKPIs(datos) {
+    const actual = datos[datos.length - 1].peso;
+    document.getElementById('last-weight').textContent = actual + " kg";
+    
+    // Calcular tendencia simple
+    if (datos.length > 1) {
+        const previo = datos[datos.length - 2].peso;
+        const diff = actual - previo;
+        const icon = diff < 0 ? '📉' : (diff > 0 ? '📈' : '➡️');
+        document.getElementById('weight-trend').textContent = icon + " " + diff.toFixed(1);
+        document.getElementById('weight-trend').style.color = diff < 0 ? '#2ecc71' : '#e74c3c';
+    }
+}
+
+function dibujarGrafico(historial) {
+    const dataArray = [['Fecha', 'Peso']];
+    historial.forEach(reg => {
+        dataArray.push([reg.fecha, parseFloat(reg.peso)]);
+    });
+
+    const data = google.visualization.arrayToDataTable(dataArray);
+
+    const options = {
+        curveType: 'function',
+        legend: { position: 'none' },
+        colors: ['#000'],
+        lineWidth: 3,
+        pointSize: 5,
+        vAxis: { gridlines: { color: '#f0f0f0' } },
+        hAxis: { textStyle: { color: '#999', fontSize: 10 } },
+        chartArea: { width: '85%', height: '80%' }
+    };
+
+    const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+    chart.draw(data, options);
+}
+
+// --- UTILIDADES GLOBALES ---
 window.saveStatus = (id, state) => {
     localStorage.setItem(id, state);
 };
 
-// Carga el estado de los checks de la sección Básicos
 function loadBasics() {
     ['b1','b2','b3','b4'].forEach(id => {
         const el = document.getElementById(id);
@@ -105,12 +203,13 @@ function loadBasics() {
     });
 }
 
-// Manejo de pestañas
 window.showTab = (name) => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
     
     document.getElementById(name + '-view').classList.add('active');
-    // Activa el botón que disparó el evento
     if (event) event.currentTarget.classList.add('active');
+    
+    // Redibujar gráfico si entramos en peso (para evitar bugs de tamaño oculto)
+    if (name === 'weight') cargarHistorialPeso();
 };
