@@ -1,5 +1,5 @@
-const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4'; // Tu ID de hoja para el menú
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvJCEPkvTYL8drM78COnm0cjd0EBWH1hQDpzP6jnxIgZUxDZTgYIAKd-Diuh2QxJc/exec'; // <--- ⚠️ PEGA AQUÍ TU URL
+const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4'; 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvJCEPkvTYL8drM78COnm0cjd0EBWH1hQDpzP6jnxIgZUxDZTgYIAKd-Diuh2QxJc/exec'; 
 
 let menuData = [];
 let shoppingData = [];
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
 
-// --- LÓGICA MENÚ Y COMPRA (Original) ---
+// --- LÓGICA MENÚ Y COMPRA ---
 async function loadData() {
     const label = document.getElementById('current-week-label');
     try {
@@ -49,30 +49,89 @@ function renderWeek(num) {
     document.getElementById('current-week-label').textContent = `Semana ${num}`;
     const container = document.getElementById('days-container');
     container.innerHTML = '';
+    
+    // Filtramos los días de la semana actual
     const days = menuData.filter(r => r.semana == num);
 
-    days.forEach(d => {
+    days.forEach((d, index) => {
+        // Obtenemos el índice real del elemento en el array completo para pasarlo a la función
+        // Pero como ya tenemos el objeto 'd', podemos pasarlo directamente si lo serializamos
+        // O más fácil: guardamos el ID temporal en el DOM para buscarlo luego en 'days'
+        
         container.innerHTML += `
-            <div class="day-item">
-                <div class="day-header">${d.dia || d.Dia || d.Día || ''}</div>
+            <div class="day-item" onclick="openRecipe(${d.semana}, '${d.dia}')">
+                <div class="day-header">${d.dia || ''}</div>
                 <div class="day-body">
                     <div class="meal-row">
                         <span class="meal-label">Desayuno</span>
-                        <div class="meal-text">${d.desayuno || d.Desayuno || '---'}</div>
+                        <div class="meal-text">${d.desayuno || '---'}</div>
                     </div>
                     <div class="meal-row">
                         <span class="meal-label">Comida</span>
-                        <div class="meal-text">${d.comida || d.Comida || '---'}</div>
+                        <div class="meal-text">${d.comida || '---'}</div>
                     </div>
                     <div class="meal-row">
                         <span class="meal-label">Cena</span>
-                        <div class="meal-text">${d.cena || d.Cena || '---'}</div>
+                        <div class="meal-text">${d.cena || '---'}</div>
                     </div>
                 </div>
             </div>`;
     });
 }
 
+// --- NUEVA LÓGICA: MODO COCINA ---
+
+function openRecipe(week, dayName) {
+    // Buscar el día correcto en los datos
+    const dayData = menuData.find(r => r.semana == week && r.dia == dayName);
+    if (!dayData) return;
+
+    // Ocultar cabecera y lista
+    document.getElementById('days-container').style.display = 'none';
+    document.getElementById('main-header').style.display = 'none';
+    document.getElementById('main-tabs').style.display = 'none';
+
+    // Mostrar vista receta
+    const view = document.getElementById('recipe-view');
+    view.style.display = 'block';
+    
+    // Rellenar datos
+    document.getElementById('recipe-day-title').textContent = dayData.dia;
+
+    // Comida
+    document.getElementById('recipe-lunch-name').textContent = dayData.comida;
+    document.getElementById('recipe-lunch-steps').innerHTML = formatRecipeText(dayData.receta_comida);
+    
+    // Cena
+    document.getElementById('recipe-dinner-name').textContent = dayData.cena;
+    document.getElementById('recipe-dinner-steps').innerHTML = formatRecipeText(dayData.receta_cena);
+
+    // Si no hay receta (ej: día libre), ocultar la tarjeta
+    document.getElementById('card-lunch').style.display = dayData.receta_comida ? 'block' : 'none';
+    document.getElementById('card-dinner').style.display = dayData.receta_cena ? 'block' : 'none';
+
+    // Scroll arriba
+    window.scrollTo(0, 0);
+}
+
+function closeRecipe() {
+    // Mostrar cabecera y lista
+    document.getElementById('days-container').style.display = 'block';
+    document.getElementById('main-header').style.display = 'block'; // Usamos flex para el header original pero en CSS está definido .minimal-header
+    document.getElementById('main-tabs').style.display = 'flex';
+
+    // Ocultar vista receta
+    document.getElementById('recipe-view').style.display = 'none';
+}
+
+function formatRecipeText(text) {
+    if (!text) return "Sin instrucciones detalladas.";
+    // Busca números entre paréntesis como (8) y los convierte en etiqueta
+    return text.replace(/\((\d)\)/g, '<span class="fire-tag">🔥 $1</span>');
+}
+
+
+// --- LÓGICA COMPRA ---
 function renderShopping(num) {
     const list = document.getElementById('shopping-list');
     list.innerHTML = '';
@@ -87,6 +146,9 @@ function renderShopping(num) {
         const id = `shop-w${num}-${prod.replace(/\s+/g, '')}`;
         const checked = localStorage.getItem(id) === 'true';
         
+        // Detectar lo que está dentro de <small> para pintarlo gris si quieres, 
+        // pero el HTML ya lo renderiza bien.
+        
         list.innerHTML += `
             <li>
                 <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} 
@@ -97,9 +159,7 @@ function renderShopping(num) {
     loadBasics();
 }
 
-// --- LÓGICA NUEVA: PESO ---
-
-// 1. Enviar Peso
+// --- LÓGICA PESO ---
 async function enviarPeso() {
     const input = document.getElementById('weight-input');
     const btn = document.getElementById('btn-save-weight');
@@ -116,7 +176,6 @@ async function enviarPeso() {
     msg.textContent = "Guardando...";
 
     try {
-        // Usamos no-cors/text para evitar problemas complejos de CORS con Google Scripts
         await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ accion: 'guardar', peso: peso }),
@@ -126,8 +185,6 @@ async function enviarPeso() {
         msg.textContent = "¡Guardado!";
         input.value = '';
         setTimeout(() => { msg.textContent = ''; }, 3000);
-        
-        // Recargar datos para actualizar gráfica
         cargarHistorialPeso();
 
     } catch (error) {
@@ -139,7 +196,6 @@ async function enviarPeso() {
     }
 }
 
-// 2. Leer y Pintar Gráfica
 async function cargarHistorialPeso() {
     try {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
@@ -158,7 +214,6 @@ function actualizarKPIs(datos) {
     const actual = datos[datos.length - 1].peso;
     document.getElementById('last-weight').textContent = actual + " kg";
     
-    // Calcular tendencia simple
     if (datos.length > 1) {
         const previo = datos[datos.length - 2].peso;
         const diff = actual - previo;
@@ -191,7 +246,7 @@ function dibujarGrafico(historial) {
     chart.draw(data, options);
 }
 
-// --- UTILIDADES GLOBALES ---
+// --- UTILIDADES ---
 window.saveStatus = (id, state) => {
     localStorage.setItem(id, state);
 };
@@ -210,6 +265,5 @@ window.showTab = (name) => {
     document.getElementById(name + '-view').classList.add('active');
     if (event) event.currentTarget.classList.add('active');
     
-    // Redibujar gráfico si entramos en peso (para evitar bugs de tamaño oculto)
     if (name === 'weight') cargarHistorialPeso();
 };
