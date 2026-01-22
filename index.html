@@ -9,12 +9,12 @@
     <link rel="apple-touch-icon" href="favicon.png">
     
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
 
-    <header class="minimal-header">
+    <header class="minimal-header" id="main-header">
         <div class="header-content">
             <h1>RUTINA</h1>
             <div class="week-controls">
@@ -26,7 +26,7 @@
     </header>
 
     <main>
-        <div class="tabs-minimal">
+        <div class="tabs-minimal" id="main-tabs">
             <button class="tab-link active" onclick="showTab('menu')">Menú</button>
             <button class="tab-link" onclick="showTab('shopping')">Compra</button>
             <button class="tab-link" onclick="showTab('weight')">Peso</button>
@@ -34,6 +34,24 @@
 
         <div id="menu-view" class="tab-content active">
             <div id="days-container"></div>
+            
+            <div id="recipe-view" class="hidden-view">
+                <button class="back-btn" onclick="closeRecipe()">← Volver al menú</button>
+                
+                <h2 id="recipe-day-title">Lunes</h2>
+
+                <div class="recipe-card" id="card-lunch">
+                    <div class="recipe-label">☀️ Comida</div>
+                    <div class="recipe-dish" id="recipe-lunch-name">...</div>
+                    <div class="recipe-steps" id="recipe-lunch-steps">...</div>
+                </div>
+
+                <div class="recipe-card" id="card-dinner">
+                    <div class="recipe-label">🌙 Cena</div>
+                    <div class="recipe-dish" id="recipe-dinner-name">...</div>
+                    <div class="recipe-steps" id="recipe-dinner-steps">...</div>
+                </div>
+            </div>
         </div>
 
         <div id="shopping-view" class="tab-content">
