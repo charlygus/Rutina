@@ -84,6 +84,13 @@ main { max-width: 600px; margin: 0 auto; padding: 0 20px; }
     margin-bottom: 16px;
     background: #fff;
     overflow: hidden;
+    cursor: pointer; /* Indica que es clicable */
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.day-item:active {
+    transform: scale(0.98);
+    background-color: #fafafa;
 }
 
 .day-header {
@@ -94,6 +101,13 @@ main { max-width: 600px; margin: 0 auto; padding: 0 20px; }
     border-bottom: 1px solid var(--border);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.day-header::after {
+    content: '→';
+    color: var(--text-light);
 }
 
 .day-body { padding: 15px; }
@@ -147,7 +161,7 @@ main { max-width: 600px; margin: 0 auto; padding: 0 20px; }
     text-transform: uppercase;
 }
 
-/* --- ESTILOS NUEVOS SECCIÓN PESO --- */
+/* SECCIÓN PESO */
 .weight-summary {
     display: flex;
     gap: 15px;
@@ -208,4 +222,72 @@ main { max-width: 600px; margin: 0 auto; padding: 0 20px; }
     font-size: 0.85rem;
     color: var(--text-light);
     height: 20px; 
+}
+
+/* --- ESTILOS NUEVOS: MODO COCINA --- */
+.hidden-view { display: none; }
+.active-view { display: block; animation: fadeIn 0.3s ease; }
+
+.back-btn {
+    background: none;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+}
+.back-btn:hover { color: var(--text); }
+
+#recipe-day-title {
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+    color: var(--text);
+}
+
+.recipe-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.recipe-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.recipe-dish {
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-bottom: 15px;
+    line-height: 1.2;
+    color: var(--text);
+}
+
+.recipe-steps {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: #444;
+    white-space: pre-wrap; /* Respeta saltos de línea */
+}
+
+/* Etiqueta de fuego */
+.fire-tag {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.9em;
+    border: 1px solid #ffeeba;
 }
