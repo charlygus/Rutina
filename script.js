@@ -1,269 +1,133 @@
-const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4'; 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvJCEPkvTYL8drM78COnm0cjd0EBWH1hQDpzP6jnxIgZUxDZTgYIAKd-Diuh2QxJc/exec'; 
+let allData = [];
+let currentWeek = 3; // Semana por defecto
 
-let menuData = [];
-let shoppingData = [];
-let currentWeek = 1;
-
-// Carga de la librería de gráficos
-google.charts.load('current', {'packages':['corechart']});
-google.charts.setOnLoadCallback(cargarHistorialPeso);
-
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadData();
-    document.getElementById('prev-week').addEventListener('click', () => changeWeek(-1));
-    document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
-});
-
-// --- LÓGICA MENÚ Y COMPRA ---
-async function loadData() {
-    const label = document.getElementById('current-week-label');
-    try {
-        const [menuRes, shopRes] = await Promise.all([
-            fetch(`https://opensheet.elk.sh/${SHEET_ID}/Menu`),
-            fetch(`https://opensheet.elk.sh/${SHEET_ID}/Compra`)
-        ]);
-        menuData = await menuRes.json();
-        shoppingData = await shopRes.json();
-        
-        if (!Array.isArray(menuData) || menuData.error) throw new Error();
-
-        renderWeek(currentWeek);
-        renderShopping(currentWeek);
-    } catch (e) {
-        label.textContent = "Error";
-        console.error("Error al cargar Google Sheets Menú");
-    }
-}
-
-function changeWeek(dir) {
-    let next = currentWeek + dir;
-    if (menuData.some(r => r.semana == next)) {
-        currentWeek = next;
-        renderWeek(currentWeek);
-        renderShopping(currentWeek);
-    }
-}
-
-function renderWeek(num) {
-    document.getElementById('current-week-label').textContent = `Semana ${num}`;
-    const container = document.getElementById('days-container');
-    container.innerHTML = '';
+async function fetchData() {
+    // Reemplaza con tu URL de Google Sheets (formato CSV)
+    const url = "TU_URL_DE_GOOGLE_SHEETS_AQUÍ"; 
     
-    // Filtramos los días de la semana actual
-    const days = menuData.filter(r => r.semana == num);
+    try {
+        const response = await fetch(url);
+        const data = await response.text();
+        // Parseamos usando el separador de barra vertical | que usamos en el Excel
+        allData = data.split('\n').map(row => row.split('|'));
+        renderApp();
+    } catch (error) {
+        console.error("Error al cargar los datos:", error);
+    }
+}
 
-    days.forEach((d, index) => {
-        // Obtenemos el índice real del elemento en el array completo para pasarlo a la función
-        // Pero como ya tenemos el objeto 'd', podemos pasarlo directamente si lo serializamos
-        // O más fácil: guardamos el ID temporal en el DOM para buscarlo luego en 'days'
-        
-        container.innerHTML += `
-            <div class="day-item" onclick="openRecipe(${d.semana}, '${d.dia}')">
-                <div class="day-header">${d.dia || ''}</div>
-                <div class="day-body">
-                    <div class="meal-row">
-                        <span class="meal-label">Desayuno</span>
-                        <div class="meal-text">${d.desayuno || '---'}</div>
-                    </div>
-                    <div class="meal-row">
-                        <span class="meal-label">Comida</span>
-                        <div class="meal-text">${d.comida || '---'}</div>
-                    </div>
-                    <div class="meal-row">
-                        <span class="meal-label">Cena</span>
-                        <div class="meal-text">${d.cena || '---'}</div>
-                    </div>
-                </div>
-            </div>`;
+function renderApp() {
+    renderMenu();
+    renderShopping();
+}
+
+// --- LÓGICA DEL MENÚ ---
+function renderMenu() {
+    const menuContainer = document.getElementById('menu-list');
+    menuContainer.innerHTML = '';
+
+    // Filtramos las filas que pertenecen a la semana seleccionada
+    // row[0] es 'semana', row[1] es 'dia', row[3] es 'plato'...
+    const weekData = allData.filter(row => row[0] == currentWeek && row[1] !== 'dia');
+
+    weekData.forEach((row, index) => {
+        if (row[3] === 'LIBRE') {
+            menuContainer.innerHTML += `
+                <div class="card cheat-day">
+                    <h4>${row[1]} - ${row[2]}</h4>
+                    <p>✨ ¡DÍA LIBRE! A disfrutar.</p>
+                </div>`;
+            return;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="card-header">
+                <span>${row[1]} - ${row[2]}</span>
+                <span class="type-tag">${row[3]}</span>
+            </div>
+            <button onclick="openModal('${row[3]}', '${row[4]}')">Ver Receta</button>
+        `;
+        menuContainer.appendChild(card);
     });
 }
 
-// --- NUEVA LÓGICA: MODO COCINA ---
-
-function openRecipe(week, dayName) {
-    // Buscar el día correcto en los datos
-    const dayData = menuData.find(r => r.semana == week && r.dia == dayName);
-    if (!dayData) return;
-
-    // Ocultar cabecera y lista
-    document.getElementById('days-container').style.display = 'none';
-    document.getElementById('main-header').style.display = 'none';
-    document.getElementById('main-tabs').style.display = 'none';
-
-    // Mostrar vista receta
-    const view = document.getElementById('recipe-view');
-    view.style.display = 'block';
+// --- LÓGICA DE LA COMPRA (LA REVOLUCIÓN) ---
+function renderShopping() {
+    const shopContainer = document.getElementById('shopping-list');
+    shopContainer.innerHTML = '';
     
-    // Rellenar datos
-    document.getElementById('recipe-day-title').textContent = dayData.dia;
-
-    // Comida
-    document.getElementById('recipe-lunch-name').textContent = dayData.comida;
-    document.getElementById('recipe-lunch-steps').innerHTML = formatRecipeText(dayData.receta_comida);
+    const isSuperMode = document.getElementById('supermarket-mode')?.checked;
     
-    // Cena
-    document.getElementById('recipe-dinner-name').textContent = dayData.cena;
-    document.getElementById('recipe-dinner-steps').innerHTML = formatRecipeText(dayData.receta_cena);
+    // Definimos los nombres de las columnas de pasillos
+    const pasillos = [
+        { idx: 5, nombre: "🥩 Carnicería", class: "cat-meat" },
+        { idx: 6, nombre: "🐟 Pescadería", class: "cat-fish" },
+        { idx: 7, nombre: "🥦 Frutería", class: "cat-veg" },
+        { idx: 8, nombre: "❄️ Refrigerados", class: "cat-cold" },
+        { idx: 9, nombre: "🥫 Despensa", class: "cat-shelf" }
+    ];
 
-    // Si no hay receta (ej: día libre), ocultar la tarjeta
-    document.getElementById('card-lunch').style.display = dayData.receta_comida ? 'block' : 'none';
-    document.getElementById('card-dinner').style.display = dayData.receta_cena ? 'block' : 'none';
+    // Si Modo Super: S3 + S4. Si no: solo currentWeek.
+    let items = isSuperMode 
+        ? allData.filter(row => row[0] == 3 || row[0] == 4)
+        : allData.filter(row => row[0] == currentWeek);
 
-    // Scroll arriba
-    window.scrollTo(0, 0);
-}
-
-function closeRecipe() {
-    // Mostrar cabecera y lista
-    document.getElementById('days-container').style.display = 'block';
-    document.getElementById('main-header').style.display = 'block'; // Usamos flex para el header original pero en CSS está definido .minimal-header
-    document.getElementById('main-tabs').style.display = 'flex';
-
-    // Ocultar vista receta
-    document.getElementById('recipe-view').style.display = 'none';
-}
-
-function formatRecipeText(text) {
-    if (!text) return "Sin instrucciones detalladas.";
-    // Busca números entre paréntesis como (8) y los convierte en etiqueta
-    return text.replace(/\((\d)\)/g, '<span class="fire-tag">🔥 $1</span>');
-}
-
-
-// --- LÓGICA COMPRA ---
-function renderShopping(num) {
-    const list = document.getElementById('shopping-list');
-    list.innerHTML = '';
-    const items = shoppingData.filter(r => r.semana == num);
-
-    if (items.length === 0) {
-        list.innerHTML = '<li style="color:#aaa; border:none;">No hay items para esta semana</li>';
-    }
-
-    items.forEach(obj => {
-        const prod = obj.producto || obj.item || "---";
-        const id = `shop-w${num}-${prod.replace(/\s+/g, '')}`;
-        const checked = localStorage.getItem(id) === 'true';
+    pasillos.forEach(pasillo => {
+        // Buscamos si hay algo en esta columna (pasillo) para las filas seleccionadas
+        const itemsEnPasillo = [];
         
-        // Detectar lo que está dentro de <small> para pintarlo gris si quieres, 
-        // pero el HTML ya lo renderiza bien.
-        
-        list.innerHTML += `
-            <li>
-                <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} 
-                       onchange="saveStatus('${id}', this.checked)">
-                <label for="${id}">${prod}</label>
-            </li>`;
-    });
-    loadBasics();
-}
-
-// --- LÓGICA PESO ---
-async function enviarPeso() {
-    const input = document.getElementById('weight-input');
-    const btn = document.getElementById('btn-save-weight');
-    const msg = document.getElementById('weight-msg');
-    
-    const peso = parseFloat(input.value);
-    if (!peso || peso <= 0) {
-        msg.textContent = "Introduce un peso válido";
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = "...";
-    msg.textContent = "Guardando...";
-
-    try {
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ accion: 'guardar', peso: peso }),
-            headers: { "Content-Type": "text/plain" }
+        items.forEach(row => {
+            const contenido = row[pasillo.idx]?.trim();
+            if (contenido && contenido !== pasillo.nombre && contenido !== "") {
+                itemsEnPasillo.push({
+                    nombre: contenido,
+                    semana: row[0],
+                    plato: row[3]
+                });
+            }
         });
 
-        msg.textContent = "¡Guardado!";
-        input.value = '';
-        setTimeout(() => { msg.textContent = ''; }, 3000);
-        cargarHistorialPeso();
-
-    } catch (error) {
-        msg.textContent = "Error al guardar";
-        console.error(error);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = "Guardar";
-    }
-}
-
-async function cargarHistorialPeso() {
-    try {
-        const res = await fetch(`${SCRIPT_URL}?accion=leer`);
-        const json = await res.json();
-        
-        if (json.datos && json.datos.length > 0) {
-            actualizarKPIs(json.datos);
-            dibujarGrafico(json.datos);
+        if (itemsEnPasillo.length > 0) {
+            // Creamos el título del pasillo
+            const section = document.createElement('div');
+            section.className = `shop-section ${pasillo.class}`;
+            section.innerHTML = `<h5>${pasillo.nombre}</h5>`;
+            
+            const ul = document.createElement('ul');
+            itemsEnPasillo.forEach(item => {
+                const uniqueId = `check-${item.semana}-${item.nombre.replace(/\s+/g, '')}`;
+                const isChecked = localStorage.getItem(uniqueId) === 'true';
+                
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <input type="checkbox" id="${uniqueId}" ${isChecked ? 'checked' : ''} onchange="toggleCheck('${uniqueId}', this)">
+                    <label for="${uniqueId}">
+                        <strong>${item.nombre}</strong>
+                        ${isSuperMode ? `<small>(S${item.semana})</small>` : `<small>${item.plato}</small>`}
+                    </label>
+                `;
+                ul.appendChild(li);
+            });
+            section.appendChild(ul);
+            shopContainer.appendChild(section);
         }
-    } catch (e) {
-        console.error("Error cargando peso", e);
-    }
-}
-
-function actualizarKPIs(datos) {
-    const actual = datos[datos.length - 1].peso;
-    document.getElementById('last-weight').textContent = actual + " kg";
-    
-    if (datos.length > 1) {
-        const previo = datos[datos.length - 2].peso;
-        const diff = actual - previo;
-        const icon = diff < 0 ? '📉' : (diff > 0 ? '📈' : '➡️');
-        document.getElementById('weight-trend').textContent = icon + " " + diff.toFixed(1);
-        document.getElementById('weight-trend').style.color = diff < 0 ? '#2ecc71' : '#e74c3c';
-    }
-}
-
-function dibujarGrafico(historial) {
-    const dataArray = [['Fecha', 'Peso']];
-    historial.forEach(reg => {
-        dataArray.push([reg.fecha, parseFloat(reg.peso)]);
-    });
-
-    const data = google.visualization.arrayToDataTable(dataArray);
-
-    const options = {
-        curveType: 'function',
-        legend: { position: 'none' },
-        colors: ['#000'],
-        lineWidth: 3,
-        pointSize: 5,
-        vAxis: { gridlines: { color: '#f0f0f0' } },
-        hAxis: { textStyle: { color: '#999', fontSize: 10 } },
-        chartArea: { width: '85%', height: '80%' }
-    };
-
-    const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
-    chart.draw(data, options);
-}
-
-// --- UTILIDADES ---
-window.saveStatus = (id, state) => {
-    localStorage.setItem(id, state);
-};
-
-function loadBasics() {
-    ['b1','b2','b3','b4'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.checked = localStorage.getItem(id) === 'true';
     });
 }
 
-window.showTab = (name) => {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
-    
-    document.getElementById(name + '-view').classList.add('active');
-    if (event) event.currentTarget.classList.add('active');
-    
-    if (name === 'weight') cargarHistorialPeso();
-};
+function toggleCheck(id, el) {
+    localStorage.setItem(id, el.checked);
+    // Opcional: tachado visual inmediato
+    el.parentElement.style.opacity = el.checked ? '0.5' : '1';
+}
+
+function changeWeek(week) {
+    currentWeek = week;
+    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    renderApp();
+}
+
+// Iniciar
+fetchData();
