@@ -1,133 +1,142 @@
 let allData = [];
-let currentWeek = 3; // Semana por defecto
+let currentWeek = 3;
 
-async function fetchData() {
-    // Reemplaza con tu URL de Google Sheets (formato CSV)
-    const url = "TU_URL_DE_GOOGLE_SHEETS_AQUÍ"; 
-    
+// URL de tu Google Sheets (Formato CSV)
+const SHEETS_URL = "TU_URL_AQUÍ_QUE_TERMINA_EN_PUB_OUTPUT_CSV";
+
+async function init() {
     try {
-        const response = await fetch(url);
-        const data = await response.text();
-        // Parseamos usando el separador de barra vertical | que usamos en el Excel
-        allData = data.split('\n').map(row => row.split('|'));
+        const response = await fetch(SHEETS_URL);
+        const text = await response.text();
+        // Separamos por la barra vertical | que pusimos en el Excel
+        allData = text.split('\n').map(row => row.split('|').map(cell => cell.trim()));
         renderApp();
-    } catch (error) {
-        console.error("Error al cargar los datos:", error);
+        initWeightChart();
+    } catch (e) {
+        console.error("Error cargando datos", e);
     }
 }
 
 function renderApp() {
+    document.getElementById('current-week-label').innerText = `Semana ${currentWeek}`;
     renderMenu();
     renderShopping();
 }
 
-// --- LÓGICA DEL MENÚ ---
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`${tabName}-view`).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// --- MENÚ Y RECETAS ---
 function renderMenu() {
-    const menuContainer = document.getElementById('menu-list');
-    menuContainer.innerHTML = '';
+    const container = document.getElementById('days-container');
+    container.innerHTML = '';
+    const weekRows = allData.filter(r => r[0] == currentWeek);
 
-    // Filtramos las filas que pertenecen a la semana seleccionada
-    // row[0] es 'semana', row[1] es 'dia', row[3] es 'plato'...
-    const weekData = allData.filter(row => row[0] == currentWeek && row[1] !== 'dia');
+    // Agrupamos por día para crear una tarjeta por día
+    const days = [...new Set(weekRows.map(r => r[1]))];
 
-    weekData.forEach((row, index) => {
-        if (row[3] === 'LIBRE') {
-            menuContainer.innerHTML += `
-                <div class="card cheat-day">
-                    <h4>${row[1]} - ${row[2]}</h4>
-                    <p>✨ ¡DÍA LIBRE! A disfrutar.</p>
-                </div>`;
-            return;
-        }
-
+    days.forEach(day => {
+        const dayRows = weekRows.filter(r => r[1] === day);
         const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-            <div class="card-header">
-                <span>${row[1]} - ${row[2]}</span>
-                <span class="type-tag">${row[3]}</span>
-            </div>
-            <button onclick="openModal('${row[3]}', '${row[4]}')">Ver Receta</button>
-        `;
-        menuContainer.appendChild(card);
+        card.className = `day-card ${dayRows[0][3] === 'LIBRE' ? 'cheat-day' : ''}`;
+        
+        let mealsHtml = `<h4>${day}</h4>`;
+        dayRows.forEach(row => {
+            if(row[3] === 'LIBRE') {
+                mealsHtml += `<p>🥳 ¡Día Libre!</p>`;
+            } else if(row[3] !== 'plato') {
+                mealsHtml += `
+                <div class="meal-row">
+                    <span><strong>${row[2]}:</strong> ${row[3]}</span>
+                    <button class="btn-mini" onclick="openRecipe('${day}')">Ver</button>
+                </div>`;
+            }
+        });
+        card.innerHTML = mealsHtml;
+        container.appendChild(card);
     });
 }
 
-// --- LÓGICA DE LA COMPRA (LA REVOLUCIÓN) ---
+function openRecipe(day) {
+    const recipeView = document.getElementById('recipe-view');
+    const container = document.getElementById('recipe-cards-container');
+    document.getElementById('recipe-day-title').innerText = day;
+    container.innerHTML = '';
+
+    const dayRows = allData.filter(r => r[0] == currentWeek && r[1] === day);
+    dayRows.forEach(row => {
+        if(row[4]) {
+            container.innerHTML += `
+                <div class="recipe-card" style="margin-bottom:20px; border:1px solid #eee; padding:15px; border-radius:10px;">
+                    <div style="color:var(--primary); font-weight:bold; margin-bottom:5px;">${row[2]}</div>
+                    <div style="font-size:1.1em; font-weight:800; margin-bottom:10px;">${row[3]}</div>
+                    <div style="line-height:1.5; color:#444;">${row[4]}</div>
+                </div>`;
+        }
+    });
+    recipeView.classList.add('active');
+}
+
+function closeRecipe() {
+    document.getElementById('recipe-view').classList.remove('active');
+}
+
+// --- COMPRA POR PASILLOS ---
 function renderShopping() {
-    const shopContainer = document.getElementById('shopping-list');
-    shopContainer.innerHTML = '';
-    
-    const isSuperMode = document.getElementById('supermarket-mode')?.checked;
-    
-    // Definimos los nombres de las columnas de pasillos
+    const container = document.getElementById('shopping-list');
+    container.innerHTML = '';
+    const isSuper = document.getElementById('supermarket-mode').checked;
+
     const pasillos = [
-        { idx: 5, nombre: "🥩 Carnicería", class: "cat-meat" },
-        { idx: 6, nombre: "🐟 Pescadería", class: "cat-fish" },
-        { idx: 7, nombre: "🥦 Frutería", class: "cat-veg" },
-        { idx: 8, nombre: "❄️ Refrigerados", class: "cat-cold" },
-        { idx: 9, nombre: "🥫 Despensa", class: "cat-shelf" }
+        { idx: 5, label: "🥩 Carnicería", class: "cat-meat" },
+        { idx: 6, label: "🐟 Pescadería", class: "cat-fish" },
+        { idx: 7, label: "🥦 Frutería", class: "cat-veg" },
+        { idx: 8, label: "❄️ Refrigerados", class: "cat-cold" },
+        { idx: 9, label: "🥫 Despensa", class: "cat-shelf" }
     ];
 
-    // Si Modo Super: S3 + S4. Si no: solo currentWeek.
-    let items = isSuperMode 
-        ? allData.filter(row => row[0] == 3 || row[0] == 4)
-        : allData.filter(row => row[0] == currentWeek);
+    let rows = isSuper ? allData.filter(r => r[0] == 3 || r[0] == 4) : allData.filter(r => r[0] == currentWeek);
 
-    pasillos.forEach(pasillo => {
-        // Buscamos si hay algo en esta columna (pasillo) para las filas seleccionadas
-        const itemsEnPasillo = [];
-        
-        items.forEach(row => {
-            const contenido = row[pasillo.idx]?.trim();
-            if (contenido && contenido !== pasillo.nombre && contenido !== "") {
-                itemsEnPasillo.push({
-                    nombre: contenido,
-                    semana: row[0],
-                    plato: row[3]
-                });
+    pasillos.forEach(p => {
+        let items = [];
+        rows.forEach(r => {
+            if(r[p.idx] && r[p.idx] !== 'carniceria' && r[p.idx] !== 'pescaderia') {
+                items.push({ text: r[p.idx], s: r[0] });
             }
         });
 
-        if (itemsEnPasillo.length > 0) {
-            // Creamos el título del pasillo
-            const section = document.createElement('div');
-            section.className = `shop-section ${pasillo.class}`;
-            section.innerHTML = `<h5>${pasillo.nombre}</h5>`;
-            
+        if(items.length > 0) {
+            const sec = document.createElement('div');
+            sec.className = `shop-section ${p.class}`;
+            sec.innerHTML = `<h5>${p.label}</h5>`;
             const ul = document.createElement('ul');
-            itemsEnPasillo.forEach(item => {
-                const uniqueId = `check-${item.semana}-${item.nombre.replace(/\s+/g, '')}`;
-                const isChecked = localStorage.getItem(uniqueId) === 'true';
-                
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <input type="checkbox" id="${uniqueId}" ${isChecked ? 'checked' : ''} onchange="toggleCheck('${uniqueId}', this)">
-                    <label for="${uniqueId}">
-                        <strong>${item.nombre}</strong>
-                        ${isSuperMode ? `<small>(S${item.semana})</small>` : `<small>${item.plato}</small>`}
-                    </label>
-                `;
-                ul.appendChild(li);
+            ul.className = "checklist-minimal";
+            
+            items.forEach((item, i) => {
+                const id = `check-${item.s}-${p.idx}-${i}`;
+                const checked = localStorage.getItem(id) === 'true';
+                ul.innerHTML += `
+                    <li>
+                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveCheck('${id}', this.checked)">
+                        <label for="${id}">${isSuper ? `[S${item.s}] ` : ''}${item.text}</label>
+                    </li>`;
             });
-            section.appendChild(ul);
-            shopContainer.appendChild(section);
+            sec.appendChild(ul);
+            container.appendChild(sec);
         }
     });
 }
 
-function toggleCheck(id, el) {
-    localStorage.setItem(id, el.checked);
-    // Opcional: tachado visual inmediato
-    el.parentElement.style.opacity = el.checked ? '0.5' : '1';
-}
+function saveCheck(id, val) { localStorage.setItem(id, val); }
 
-function changeWeek(week) {
-    currentWeek = week;
-    document.querySelectorAll('.week-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+function changeWeek(delta) {
+    currentWeek = Math.max(1, currentWeek + delta);
     renderApp();
 }
 
-// Iniciar
-fetchData();
+// Iniciar app
+init();
