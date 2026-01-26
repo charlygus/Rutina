@@ -12,7 +12,6 @@ async function fetchData() {
         
         if (lines.length === 0) return;
 
-        // Detectar separador automáticamente
         const firstLine = lines[0];
         const separator = firstLine.includes(';') ? ';' : ',';
         const regex = new RegExp(`${separator}(?=(?:(?:[^"]*"){2})*[^"]*$)`);
@@ -23,13 +22,11 @@ async function fetchData() {
             });
         });
 
-        console.log("Datos cargados. Total filas:", allData.length);
         renderApp();
-        
     } catch (e) {
         console.error("Error cargando Google Sheets:", e);
         const container = document.getElementById('days-container');
-        if(container) container.innerHTML = '<p style="text-align:center; padding:20px;">Error conectando con la hoja de datos.</p>';
+        if(container) container.innerHTML = '<p style="text-align:center; padding:20px;">Error de conexión.</p>';
     }
 }
 
@@ -50,7 +47,6 @@ function renderMenu() {
         const dayRows = weekRows.filter(r => r[1] === day);
         const card = document.createElement('div');
         card.className = 'day-card';
-        
         let html = `<h3>${day}</h3>`;
         const momentos = ["Desayuno", "Comida", "Cena"]; 
         
@@ -73,55 +69,32 @@ function openRecipe(day) {
     const dayRows = allData.filter(r => r[0] == currentWeek && r[1] === day);
     const titleEl = document.getElementById('recipe-day-title');
     if(titleEl) titleEl.innerText = day;
-    
     const container = document.getElementById('recipe-container');
     container.innerHTML = ''; 
-
     const momentos = ["Desayuno", "Comida", "Cena"];
-
     momentos.forEach(m => {
         const found = dayRows.find(r => r[2] === m);
         if (found) {
-            const nombrePlato = found[3] || "";
-            const pasos = found[4] || "Ver ingredientes.";
-
-            const html = `
+            container.innerHTML += `
                 <div class="recipe-box">
                     <div class="recipe-tag">${m}</div>
-                    <div class="recipe-name">${nombrePlato}</div>
-                    <div class="recipe-text">${pasos}</div>
-                </div>
-            `;
-            container.innerHTML += html;
+                    <div class="recipe-name">${found[3] || ""}</div>
+                    <div class="recipe-text">${found[4] || "Ver ingredientes."}</div>
+                </div>`;
         }
     });
     document.getElementById('recipe-view').classList.add('active');
 }
 
-// --- FUNCIÓN INTELIGENTE PARA UNIFICAR PLURALES ---
 function getSingularKey(word) {
     let w = word.toLowerCase().trim();
-    
-    // 1. Diccionario de excepciones comunes en cocina
-    const map = {
-        "nueces": "nuez",
-        "peces": "pez",
-        "panes": "pan",
-        "calabacines": "calabacin",
-        "champiñones": "champiñon",
-        "esparragos": "esparrago"
-    };
+    const map = { "nueces": "nuez", "peces": "pez", "panes": "pan", "calabacines": "calabacin", "champiñones": "champiñon", "esparragos": "esparrago" };
     if (map[w]) return map[w];
-
-    // 2. Heurística básica: Si acaba en 's' y no es muy corta (ej: 'res', 'dos'), quitamos la 's'
-    // Esto convierte "Ajos" -> "Ajo", "Huevos" -> "Huevo", "Pimientos" -> "Pimiento"
-    if (w.length > 3 && w.endsWith('s')) {
-        return w.slice(0, -1);
-    }
-    
+    if (w.length > 3 && w.endsWith('s')) return w.slice(0, -1);
     return w;
 }
 
+// --- LÓGICA DE COMPRA MEJORADA PARA MODO SUPERMERCADO ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     if(!list) return;
@@ -143,57 +116,63 @@ function renderShopping() {
     let globalHasItems = false;
 
     pasillos.forEach(p => {
-        // Usamos un objeto para guardar info completa: { "ajo": {count: 2, display: "Ajo"} }
+        // Estructura: { "ajo": { display: "Ajo", weeks: { "3": 2, "4": 1 } } }
         let itemsMap = {};
 
         rows.forEach(r => {
+            const weekNum = r[0];
             const cellContent = r[p.idx];
             if (cellContent && cellContent.trim() !== "") {
                 const ingredients = cellContent.split(/[,|\n]/);
-                
                 ingredients.forEach(ing => {
                     let cleanDisplay = ing.trim();
                     if(cleanDisplay.length > 1) { 
-                        // Normalizamos display (Primera Mayúscula)
                         cleanDisplay = cleanDisplay.charAt(0).toUpperCase() + cleanDisplay.slice(1).toLowerCase();
-                        
-                        // Obtenemos la CLAVE ÚNICA singularizada (Ajos -> ajo)
                         let key = getSingularKey(cleanDisplay);
 
-                        if (itemsMap[key]) {
-                            itemsMap[key].count++;
-                            // Truco visual: Nos quedamos con el nombre más corto (Prefiero "Ajo" a "Ajos")
-                            if (cleanDisplay.length < itemsMap[key].display.length) {
-                                itemsMap[key].display = cleanDisplay;
-                            }
-                        } else {
-                            itemsMap[key] = { count: 1, display: cleanDisplay };
+                        if (!itemsMap[key]) {
+                            itemsMap[key] = { display: cleanDisplay, weeks: {} };
                         }
+                        
+                        // Guardamos el nombre más corto para el display
+                        if (cleanDisplay.length < itemsMap[key].display.length) {
+                            itemsMap[key].display = cleanDisplay;
+                        }
+
+                        // Contamos por semana
+                        itemsMap[key].weeks[weekNum] = (itemsMap[key].weeks[weekNum] || 0) + 1;
                     }
                 });
             }
         });
         
-        // Convertimos el mapa a array y ordenamos por el nombre visible
         const sortedKeys = Object.keys(itemsMap).sort((a, b) => itemsMap[a].display.localeCompare(itemsMap[b].display));
 
         if (sortedKeys.length > 0) {
             globalHasItems = true;
-            const h = document.createElement('h4');
-            h.className = 'shopping-category-title';
-            h.innerText = p.label;
-            list.appendChild(h);
+            list.innerHTML += `<h4 class="shopping-category-title">${p.label}</h4>`;
             
             sortedKeys.forEach((key) => {
                 const itemData = itemsMap[key];
-                
-                // Generamos etiqueta de cantidad
-                const qtyLabel = itemData.count > 1 ? ` <span style="color:#000; font-weight:800;">(x${itemData.count})</span>` : '';
-                
-                // ID único
+                let labelExtra = "";
+                let totalCount = 0;
+
+                // Generamos el texto de semanas si hay varias o si es modo súper
+                if (isSuper) {
+                    let weekDetails = [];
+                    Object.keys(itemData.weeks).sort().forEach(w => {
+                        weekDetails.push(`x${itemData.weeks[w]} S${w}`);
+                        totalCount += itemData.weeks[w];
+                    });
+                    labelExtra = ` <span style="color:#666; font-size:0.85em; font-weight:400;">(${weekDetails.join(' y ')})</span>`;
+                } else {
+                    // Modo normal: solo (xN)
+                    totalCount = Object.values(itemData.weeks).reduce((a, b) => a + b, 0);
+                    labelExtra = totalCount > 1 ? ` <span style="font-weight:800;">(x${totalCount})</span>` : '';
+                }
+
                 const cleanIdName = itemData.display.replace(/[^a-zA-Z0-9]/g, '');
-                const uniqueId = `shop-${p.idx}-${cleanIdName}`;
-                
+                const uniqueId = `shop-${p.idx}-${cleanIdName}-${isSuper ? 'super' : currentWeek}`;
                 const isChecked = localStorage.getItem(uniqueId) === 'true';
                 
                 const div = document.createElement('div');
@@ -201,26 +180,24 @@ function renderShopping() {
                 div.innerHTML = `
                     <input type="checkbox" id="${uniqueId}" ${isChecked ? 'checked' : ''}>
                     <label for="${uniqueId}" style="flex:1; ${isChecked ? 'text-decoration:line-through; opacity:0.5' : ''}">
-                        ${itemData.display}${qtyLabel}
+                        <span style="font-weight:600;">${itemData.display}</span>${labelExtra}
                     </label>
                 `;
                 
                 const input = div.querySelector('input');
-                const label = div.querySelector('label');
-                
                 input.addEventListener('change', (e) => {
                     localStorage.setItem(uniqueId, e.target.checked);
+                    const label = e.target.nextElementSibling;
                     label.style.textDecoration = e.target.checked ? 'line-through' : 'none';
                     label.style.opacity = e.target.checked ? '0.5' : '1';
                 });
-
                 list.appendChild(div);
             });
         }
     });
 
     if (!globalHasItems) {
-        list.innerHTML = '<p style="text-align:center; padding:30px; color:#aaa;">Nada en la lista.</p>';
+        list.innerHTML = '<p style="text-align:center; padding:30px; color:#aaa;">Lista vacía.</p>';
     }
 }
 
@@ -238,20 +215,15 @@ function renderApp() {
     renderShopping();
 }
 
-function closeRecipe() { 
-    document.getElementById('recipe-view').classList.remove('active'); 
-}
+function closeRecipe() { document.getElementById('recipe-view').classList.remove('active'); }
 
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
     document.getElementById(`${tabId}-view`).classList.add('active');
-    
     const buttons = document.querySelectorAll('.tab-link');
     buttons.forEach(btn => {
-        if(btn.getAttribute('onclick').includes(tabId)) {
-            btn.classList.add('active');
-        }
+        if(btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
     });
 }
 
