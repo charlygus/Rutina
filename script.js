@@ -1,7 +1,5 @@
 let allData = [];
-let currentWeek = 3; // Semana inicial por defecto
-
-// IMPORTANTE: Asegúrate de que esta URL termina en output=csv
+let currentWeek = 1; // Empezamos en la semana 1 según tus datos
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROs3rKkPkBRckXovNQ3q6FqNIeaTD47d82QbULNJRZCZfl4E-Ekc26Iiq3xpAoq46Nnp8G3UU9c6PD/pub?output=csv";
 
 window.onload = fetchData;
@@ -11,29 +9,32 @@ async function fetchData() {
         const response = await fetch(SHEET_URL);
         const text = await response.text();
         
-        // 1. Dividir por líneas (maneja saltos de línea Windows/Mac/Linux)
+        // 1. Dividir por líneas
         const lines = text.trim().split(/\r?\n/);
         
         if (lines.length === 0) return;
 
-        // 2. Mapear cada línea a columnas usando Regex para CSV
-        // Esto separa por comas PERO ignora las comas dentro de comillas (ej: "Sal, pimienta")
-        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        // 2. Detectar separador (Coma o Punto y coma)
+        const firstLine = lines[0];
+        const separator = firstLine.includes(';') ? ';' : ',';
+        
+        // Regex dinámica para separar correctamente respetando textos entre comillas
+        const regex = new RegExp(`${separator}(?=(?:(?:[^"]*"){2})*[^"]*$)`);
 
         allData = lines.map(line => {
             return line.split(regex).map(cell => {
-                // Eliminar comillas envolventes si existen y espacios extra
                 return cell.replace(/^["']|["']$/g, '').trim();
             });
         });
 
-        console.log("Datos cargados correctamente. Filas:", allData.length);
+        console.log("Datos cargados. Total filas:", allData.length);
         renderApp();
         
     } catch (e) {
         console.error("Error cargando Google Sheets:", e);
-        document.getElementById('days-container').innerHTML = 
-            '<p style="text-align:center; padding:20px; color:red;">Error conectando con la base de datos.</p>';
+        // Si falla, mostramos mensaje en la app
+        const container = document.getElementById('days-container');
+        if(container) container.innerHTML = '<p style="text-align:center; padding:20px;">Error conectando con la hoja de datos.</p>';
     }
 }
 
@@ -42,14 +43,15 @@ function renderMenu() {
     if(!container) return;
     container.innerHTML = '';
     
-    // Filtrar: Semana actual y asegurar que no sea la fila de cabecera
-    const weekRows = allData.filter(r => r[0] == currentWeek && r[1] && r[1].toLowerCase() !== 'dia');
+    // Filtramos por semana actual (Columna 0)
+    const weekRows = allData.filter(r => r[0] == currentWeek);
     
-    // Obtener días únicos de esa semana (Lunes, Martes...)
-    const days = [...new Set(weekRows.map(r => r[1]))];
+    // Obtenemos los días únicos (Columna 1)
+    // Filtramos para que no salga la cabecera "Dia" si se coló
+    const days = [...new Set(weekRows.map(r => r[1]))].filter(d => d.toLowerCase() !== 'dia');
 
     if (days.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">No hay menú para esta semana.</p>';
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">Cargando menú...</p>';
         return;
     }
 
@@ -59,13 +61,13 @@ function renderMenu() {
         card.className = 'day-card';
         
         let html = `<h3>${day}</h3>`;
-        const momentos = ["Desayuno", "Comida", "Cena"]; // Deben coincidir con tu Excel columna C
+        const momentos = ["Desayuno", "Comida", "Cena"]; 
         
         momentos.forEach(m => {
-            // Buscar fila donde Columna C (índice 2) coincide con el momento
+            // Buscamos coincidencia en Columna 2 (Momento)
             const found = dayRows.find(r => r[2] && r[2].trim() === m);
             
-            // Si existe y tiene nombre de plato (Columna D / índice 3)
+            // Columna 3 es el Plato
             if (found && found[3]) {
                 html += `
                 <div class="meal-row" onclick="openRecipe('${day}')">
@@ -82,7 +84,9 @@ function renderMenu() {
 function openRecipe(day) {
     const dayRows = allData.filter(r => r[0] == currentWeek && r[1] === day);
     
-    document.getElementById('recipe-day-title').innerText = day;
+    const titleEl = document.getElementById('recipe-day-title');
+    if(titleEl) titleEl.innerText = day;
+    
     const container = document.getElementById('recipe-container');
     container.innerHTML = ''; 
 
@@ -91,9 +95,9 @@ function openRecipe(day) {
     momentos.forEach(m => {
         const found = dayRows.find(r => r[2] === m);
         if (found) {
-            // Columna 3: Nombre Plato, Columna 4: Receta/Pasos
+            // Columna 3: Plato, Columna 4: Receta
             const nombrePlato = found[3] || "";
-            const pasos = found[4] || "Consultar ingredientes.";
+            const pasos = found[4] || "Ver ingredientes.";
 
             const html = `
                 <div class="recipe-box">
@@ -115,9 +119,9 @@ function renderShopping() {
     list.innerHTML = '';
     const isSuper = document.getElementById('supermarket-mode')?.checked;
 
-    // CONFIGURACIÓN DE COLUMNAS DE COMPRA
-    // Índices basados en columna A=0. Ajusta si mueves columnas en Excel.
-    // 5=F, 6=G, 7=H, 8=I, 9=J
+    // MAPEO DE TUS COLUMNAS (Basado en tus datos)
+    // 0:Semana, 1:Dia, 2:Momento, 3:Plato, 4:Receta
+    // 5:Carniceria, 6:Pescaderia, 7:Fruteria, 8:Refrigerados, 9:Despensa
     const pasillos = [
         { idx: 5, label: "Carnicería" },
         { idx: 6, label: "Pescadería" },
@@ -126,42 +130,46 @@ function renderShopping() {
         { idx: 9, label: "Despensa" }
     ];
 
-    // Lógica Modo Supermercado (Semana 3 y 4 juntas) o Semana Actual
+    // Lógica: Si es Modo Supermercado, muestra S3 + S4. Si no, semana actual.
+    // Importante: Filtramos filas que no sean la cabecera "semana"
     let rows = isSuper 
-        ? allData.filter(r => (r[0] == 3 || r[0] == 4) && r[1].toLowerCase() !== 'dia') 
-        : allData.filter(r => r[0] == currentWeek && r[1].toLowerCase() !== 'dia');
+        ? allData.filter(r => (r[0] == 3 || r[0] == 4) && isNaN(r[0]) === false) 
+        : allData.filter(r => r[0] == currentWeek);
+
+    let hasItems = false;
 
     pasillos.forEach(p => {
-        // Filtrar celdas vacías
+        // Filtrar items vacíos
         let items = rows.filter(r => r[p.idx] && r[p.idx].trim() !== "");
         
         if (items.length > 0) {
-            // Título del pasillo
+            hasItems = true;
             const h = document.createElement('h4');
             h.className = 'shopping-category-title';
             h.innerText = p.label;
             list.appendChild(h);
             
             items.forEach((item, i) => {
-                // ID único para guardar el estado del checkbox
-                // Usa Semana + Columna + Índice + Primeras letras del item para ser único
-                const cleanName = item[p.idx].replace(/[^a-zA-Z0-9]/g, '');
-                const uniqueId = `chk-w${item[0]}-${p.idx}-${i}-${cleanName.slice(0,8)}`;
+                // ID único para checkbox: w(semana)-(columna)-(indice)-(texto)
+                const cleanText = item[p.idx].replace(/[^a-zA-Z0-9]/g, '').slice(0,10);
+                const uniqueId = `chk-w${item[0]}-${p.idx}-${i}-${cleanText}`;
                 
                 const isChecked = localStorage.getItem(uniqueId) === 'true';
                 
                 const div = document.createElement('div');
                 div.className = 'shopping-item';
                 
+                // Muestra etiqueta S3 o S4 si estamos en modo supermercado
+                const weekLabel = isSuper ? `<span style="font-weight:bold; font-size:0.8em; margin-right:5px;">S${item[0]}</span>` : '';
+
                 div.innerHTML = `
                     <input type="checkbox" id="${uniqueId}" ${isChecked ? 'checked' : ''}>
                     <label for="${uniqueId}" style="flex:1; ${isChecked ? 'text-decoration:line-through; opacity:0.5' : ''}">
-                        ${isSuper ? `<span style="color:#000; font-weight:800; font-size:0.8em; margin-right:5px;">S${item[0]}</span>` : ''}
-                        ${item[p.idx]}
+                        ${weekLabel}${item[p.idx]}
                     </label>
                 `;
                 
-                // Evento Checkbox
+                // Evento click
                 const input = div.querySelector('input');
                 const label = div.querySelector('label');
                 
@@ -175,16 +183,16 @@ function renderShopping() {
             });
         }
     });
-    
-    if (list.innerHTML === '') {
-        list.innerHTML = '<p style="text-align:center; padding:30px; color:#aaa;">Nada que comprar esta semana.</p>';
+
+    if (!hasItems) {
+        list.innerHTML = '<p style="text-align:center; padding:30px; color:#aaa;">Nada en la lista para esta selección.</p>';
     }
 }
 
 function changeWeek(d) {
-    // Evita semanas negativas, ajusta según tu duración del plan
     const newWeek = currentWeek + d;
-    if (newWeek < 1) return; 
+    // Ajusta el límite (ej: si solo tienes 4 semanas, pon newWeek > 4)
+    if (newWeek < 1 || newWeek > 4) return; 
     
     currentWeek = newWeek;
     renderApp();
@@ -203,15 +211,10 @@ function closeRecipe() {
 }
 
 function showTab(tabId) {
-    // Ocultar todos los contenidos
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    // Desactivar todos los botones
     document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
-    
-    // Activar contenido y botón seleccionado
     document.getElementById(`${tabId}-view`).classList.add('active');
     
-    // Encontrar el botón que tiene el onclick correspondiente
     const buttons = document.querySelectorAll('.tab-link');
     buttons.forEach(btn => {
         if(btn.getAttribute('onclick').includes(tabId)) {
@@ -220,11 +223,10 @@ function showTab(tabId) {
     });
 }
 
-// Funciones Placeholder para Peso (Lógica futura)
 function enviarPeso() {
     const val = document.getElementById('weight-input').value;
     if(val) {
         document.getElementById('last-weight').innerText = val + ' kg';
-        alert("Peso guardado localmente (simulado).");
+        alert("Peso guardado (simulado).");
     }
 }
