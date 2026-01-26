@@ -6,18 +6,11 @@ async function fetchData() {
     try {
         const response = await fetch(SHEET_URL);
         const text = await response.text();
-        
-        // Parseo robusto: split por filas y luego por el separador |
-        // Usamos una expresión regular para limpiar posibles comillas de Google
-        allData = text.split(/\r?\n/).map(row => {
-            return row.split('|').map(cell => cell.replace(/^"|"$/g, '').trim());
-        });
-
-        console.log("Datos procesados correctamente:", allData);
+        // Dividimos por líneas y luego por punto y coma
+        allData = text.trim().split('\n').map(row => row.split(';').map(c => c.trim()));
         renderApp();
     } catch (e) {
-        console.error("Error de conexión:", e);
-        document.getElementById('days-container').innerHTML = "⚠️ Error al conectar con Google Sheets";
+        console.error("Error cargando Sheets", e);
     }
 }
 
@@ -28,34 +21,29 @@ function showTab(tab) {
     event.currentTarget.classList.add('active');
 }
 
-// --- MENÚ ---
 function renderMenu() {
     const container = document.getElementById('days-container');
-    if(!container) return;
     container.innerHTML = '';
+    document.getElementById('current-week-label').innerText = `Semana ${currentWeek}`;
 
-    const weekRows = allData.filter(r => r[0] == currentWeek);
-    const days = [...new Set(weekRows.map(r => r[1]))].filter(d => d && d !== "dia");
-
-    if(days.length === 0) {
-        container.innerHTML = `<div class="day-card">No hay datos para la Semana ${currentWeek}</div>`;
-        return;
-    }
+    const rows = allData.filter(r => r[0] == currentWeek);
+    const days = [...new Set(rows.map(r => r[1]))];
 
     days.forEach(day => {
-        const dayRows = weekRows.filter(r => r[1] === day);
+        if (!day || day === "dia") return;
+        const dayRows = rows.filter(r => r[1] === day);
         const card = document.createElement('div');
-        card.className = 'day-card'; // Usando tu clase original
+        card.className = 'day-card';
         
-        let html = `<h3 style="margin-top:0; color:#1d1d1f;">${day}</h3>`;
+        let html = `<h3>${day}</h3>`;
         dayRows.forEach(row => {
             if (row[3] === 'LIBRE') {
-                html += `<div style="padding:10px; color:#86868b; font-style:italic;">✨ Día Libre</div>`;
+                html += `<p style="color:#888 italic">✨ Día Libre</p>`;
             } else if (row[3]) {
                 html += `
-                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #f2f2f2; cursor:pointer;" onclick="openRecipe('${day}')">
+                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid #eee">
                     <span><strong>${row[2]}:</strong> ${row[3]}</span>
-                    <span style="font-size:0.8rem; background:#eee; padding:2px 8px; border-radius:5px;">Ver</span>
+                    <button class="btn-mini" onclick="openRecipe('${day}')">Ver</button>
                 </div>`;
             }
         });
@@ -65,16 +53,16 @@ function renderMenu() {
 }
 
 function openRecipe(day) {
-    const dayRows = allData.filter(r => r[0] == currentWeek && r[1] === day);
+    const rows = allData.filter(r => r[0] == currentWeek && r[1] === day);
     document.getElementById('recipe-day-title').innerText = day;
     
-    // Reset de los campos de tu HTML
+    // Reset campos
     document.getElementById('recipe-lunch-name').innerText = "-";
     document.getElementById('recipe-lunch-steps').innerText = "";
     document.getElementById('recipe-dinner-name').innerText = "-";
     document.getElementById('recipe-dinner-steps').innerText = "";
 
-    dayRows.forEach(row => {
+    rows.forEach(row => {
         if (row[2] === 'Comida') {
             document.getElementById('recipe-lunch-name').innerText = row[3];
             document.getElementById('recipe-lunch-steps').innerText = row[4];
@@ -83,23 +71,14 @@ function openRecipe(day) {
             document.getElementById('recipe-dinner-steps').innerText = row[4];
         }
     });
-
     document.getElementById('recipe-view').classList.add('active');
-    document.getElementById('recipe-view').style.display = 'block';
 }
 
-function closeRecipe() {
-    document.getElementById('recipe-view').classList.remove('active');
-    document.getElementById('recipe-view').style.display = 'none';
-}
+function closeRecipe() { document.getElementById('recipe-view').classList.remove('active'); }
 
-// --- COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
-    if(!list) return;
     list.innerHTML = '';
-
-    const isSuper = document.getElementById('supermarket-mode')?.checked;
     const pasillos = [
         { idx: 5, label: "🥩 Carnicería" },
         { idx: 6, label: "🐟 Pescadería" },
@@ -108,48 +87,33 @@ function renderShopping() {
         { idx: 9, label: "🥫 Despensa" }
     ];
 
-    let rows = isSuper 
-        ? allData.filter(r => r[0] == 3 || r[0] == 4) 
-        : allData.filter(r => r[0] == currentWeek);
+    const rows = allData.filter(r => r[0] == currentWeek);
 
     pasillos.forEach(p => {
-        let items = [];
-        rows.forEach(r => {
-            if(r[p.idx] && r[p.idx] !== "" && r[p.idx] !== "carniceria") {
-                items.push({ name: r[p.idx], s: r[0] });
-            }
-        });
-
+        let items = rows.filter(r => r[p.idx] && r[p.idx] !== "" && r[0] !== "semana").map(r => r[p.idx]);
         if (items.length > 0) {
-            const header = document.createElement('li');
-            header.innerHTML = `<h4 style="margin:15px 0 5px 0; font-size:0.7rem; color:#888;">${p.label}</h4>`;
-            list.appendChild(header);
-
+            const h = document.createElement('h4');
+            h.innerText = p.label;
+            h.style = "margin-top:20px; font-size:0.8rem; color:#888";
+            list.appendChild(h);
+            
             items.forEach((item, i) => {
-                const id = `chk-${item.s}-${p.idx}-${i}`;
+                const id = `chk-${currentWeek}-${p.idx}-${i}`;
                 const checked = localStorage.getItem(id) === 'true';
                 const li = document.createElement('li');
-                li.innerHTML = `
-                    <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="localStorage.setItem('${id}', this.checked)">
-                    <label for="${id}">${isSuper ? `[S${item.s}] ` : ''}${item.name}</label>
-                `;
+                li.style = "list-style:none; padding:5px 0; border-bottom:1px solid #f2f2f2";
+                li.innerHTML = `<input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="localStorage.setItem('${id}', this.checked)"><label for="${id}" style="margin-left:10px">${item}</label>`;
                 list.appendChild(li);
             });
         }
     });
 }
 
-function changeWeek(delta) {
-    currentWeek = Math.max(1, currentWeek + delta);
-    document.getElementById('current-week-label').innerText = `Semana ${currentWeek}`;
+function changeWeek(d) {
+    currentWeek = Math.max(1, currentWeek + d);
     renderApp();
 }
 
-function renderApp() {
-    document.getElementById('current-week-label').innerText = `Semana ${currentWeek}`;
-    renderMenu();
-    renderShopping();
-}
+function renderApp() { renderMenu(); renderShopping(); }
 
-// Iniciar
 fetchData();
