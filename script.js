@@ -38,7 +38,6 @@ function renderMenu() {
     if(!container) return;
     container.innerHTML = '';
     
-    // Filtro estricto para la semana actual
     const weekRows = allData.filter(r => r[0] == currentWeek);
     const days = [...new Set(weekRows.map(r => r[1]))].filter(d => d.toLowerCase() !== 'dia');
 
@@ -99,14 +98,36 @@ function openRecipe(day) {
     document.getElementById('recipe-view').classList.add('active');
 }
 
-// --- LÓGICA DE COMPRA CON CONTADOR (x3) ---
+// --- FUNCIÓN INTELIGENTE PARA UNIFICAR PLURALES ---
+function getSingularKey(word) {
+    let w = word.toLowerCase().trim();
+    
+    // 1. Diccionario de excepciones comunes en cocina
+    const map = {
+        "nueces": "nuez",
+        "peces": "pez",
+        "panes": "pan",
+        "calabacines": "calabacin",
+        "champiñones": "champiñon",
+        "esparragos": "esparrago"
+    };
+    if (map[w]) return map[w];
+
+    // 2. Heurística básica: Si acaba en 's' y no es muy corta (ej: 'res', 'dos'), quitamos la 's'
+    // Esto convierte "Ajos" -> "Ajo", "Huevos" -> "Huevo", "Pimientos" -> "Pimiento"
+    if (w.length > 3 && w.endsWith('s')) {
+        return w.slice(0, -1);
+    }
+    
+    return w;
+}
+
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     if(!list) return;
     list.innerHTML = '';
     const isSuper = document.getElementById('supermarket-mode')?.checked;
 
-    // Índices de columnas según tu Excel
     const pasillos = [
         { idx: 5, label: "Carnicería" },
         { idx: 6, label: "Pescadería" },
@@ -115,7 +136,6 @@ function renderShopping() {
         { idx: 9, label: "Despensa" }
     ];
 
-    // Selección de filas
     let rows = isSuper 
         ? allData.filter(r => (r[0] == 3 || r[0] == 4) && isNaN(r[0]) === false) 
         : allData.filter(r => r[0] == currentWeek);
@@ -123,51 +143,56 @@ function renderShopping() {
     let globalHasItems = false;
 
     pasillos.forEach(p => {
-        // Usamos un OBJETO para contar frecuencias: { "Yogur": 5, "Nueces": 2 }
-        let itemCounts = {};
+        // Usamos un objeto para guardar info completa: { "ajo": {count: 2, display: "Ajo"} }
+        let itemsMap = {};
 
         rows.forEach(r => {
             const cellContent = r[p.idx];
             if (cellContent && cellContent.trim() !== "") {
-                // Separamos ingredientes múltiples en la misma celda
                 const ingredients = cellContent.split(/[,|\n]/);
                 
                 ingredients.forEach(ing => {
-                    let clean = ing.trim();
-                    if(clean.length > 1) { 
-                        // Normalizamos texto
-                        clean = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+                    let cleanDisplay = ing.trim();
+                    if(cleanDisplay.length > 1) { 
+                        // Normalizamos display (Primera Mayúscula)
+                        cleanDisplay = cleanDisplay.charAt(0).toUpperCase() + cleanDisplay.slice(1).toLowerCase();
                         
-                        // Si ya existe, sumamos 1. Si no, inicializamos en 1.
-                        if (itemCounts[clean]) {
-                            itemCounts[clean]++;
+                        // Obtenemos la CLAVE ÚNICA singularizada (Ajos -> ajo)
+                        let key = getSingularKey(cleanDisplay);
+
+                        if (itemsMap[key]) {
+                            itemsMap[key].count++;
+                            // Truco visual: Nos quedamos con el nombre más corto (Prefiero "Ajo" a "Ajos")
+                            if (cleanDisplay.length < itemsMap[key].display.length) {
+                                itemsMap[key].display = cleanDisplay;
+                            }
                         } else {
-                            itemCounts[clean] = 1;
+                            itemsMap[key] = { count: 1, display: cleanDisplay };
                         }
                     }
                 });
             }
         });
         
-        // Convertimos el objeto a array para ordenarlo
-        const sortedItems = Object.keys(itemCounts).sort();
+        // Convertimos el mapa a array y ordenamos por el nombre visible
+        const sortedKeys = Object.keys(itemsMap).sort((a, b) => itemsMap[a].display.localeCompare(itemsMap[b].display));
 
-        if (sortedItems.length > 0) {
+        if (sortedKeys.length > 0) {
             globalHasItems = true;
             const h = document.createElement('h4');
             h.className = 'shopping-category-title';
             h.innerText = p.label;
             list.appendChild(h);
             
-            sortedItems.forEach((item) => {
-                const count = itemCounts[item];
+            sortedKeys.forEach((key) => {
+                const itemData = itemsMap[key];
                 
-                // Generamos etiqueta de cantidad solo si es > 1
-                const qtyLabel = count > 1 ? ` <span style="color:#000; font-weight:800;">(x${count})</span>` : '';
+                // Generamos etiqueta de cantidad
+                const qtyLabel = itemData.count > 1 ? ` <span style="color:#000; font-weight:800;">(x${itemData.count})</span>` : '';
                 
-                // ID único basado en nombre y pasillo
-                const cleanName = item.replace(/[^a-zA-Z0-9]/g, '');
-                const uniqueId = `shop-${p.idx}-${cleanName}`;
+                // ID único
+                const cleanIdName = itemData.display.replace(/[^a-zA-Z0-9]/g, '');
+                const uniqueId = `shop-${p.idx}-${cleanIdName}`;
                 
                 const isChecked = localStorage.getItem(uniqueId) === 'true';
                 
@@ -176,7 +201,7 @@ function renderShopping() {
                 div.innerHTML = `
                     <input type="checkbox" id="${uniqueId}" ${isChecked ? 'checked' : ''}>
                     <label for="${uniqueId}" style="flex:1; ${isChecked ? 'text-decoration:line-through; opacity:0.5' : ''}">
-                        ${item}${qtyLabel}
+                        ${itemData.display}${qtyLabel}
                     </label>
                 `;
                 
