@@ -2,7 +2,7 @@ let allData = [];
 let currentWeek = 3;
 
 // URL de tu Google Sheets (Formato CSV)
-const SHEETS_URL = "TU_URL_AQUÍ_QUE_TERMINA_EN_PUB_OUTPUT_CSV";
+const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROs3rKkPkBRckXovNQ3q6FqNIeaTD47d82QbULNJRZCZfl4E-Ekc26Iiq3xpAoq46Nnp8G3UU9c6PD/pub?output=csv";
 
 async function init() {
     try {
