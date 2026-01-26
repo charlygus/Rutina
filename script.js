@@ -2,21 +2,32 @@ let allData = [];
 let currentWeek = 3;
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROs3rKkPkBRckXovNQ3q6FqNIeaTD47d82QbULNJRZCZfl4E-Ekc26Iiq3xpAoq46Nnp8G3UU9c6PD/pub?output=csv";
 
-document.addEventListener('DOMContentLoaded', fetchData);
+// Forzar carga al abrir
+window.onload = fetchData;
 
 async function fetchData() {
+    const container = document.getElementById('days-container');
+    container.innerHTML = "<h3>⏳ Cargando datos...</h3>";
+
     try {
         const response = await fetch(SHEET_URL);
         const text = await response.text();
-        const rows = text.trim().split('\n');
         
-        // Procesamos filas usando PUNTO Y COMA
-        allData = rows.map(row => row.split(';').map(cell => cell.replace(/^["']|["']$/g, '').trim()));
+        // Dividimos por filas y limpiamos espacios
+        const rows = text.trim().split(/\r?\n/);
         
-        console.log("Datos cargados correctamente:", allData.length, "filas");
+        // Detectamos si el Excel usa ; o ,
+        const separator = rows[0].includes(';') ? ';' : ',';
+        
+        // Procesamos limpiando comillas dobles que pone Google
+        allData = rows.map(row => 
+            row.split(separator).map(cell => cell.replace(/^["']|["']$/g, '').trim())
+        );
+
+        console.log("Datos cargados. Ejemplo fila 1:", allData[1]);
         renderApp();
     } catch (e) {
-        console.error("Error cargando el Excel:", e);
+        container.innerHTML = `<h3 style="color:red">❌ Error: No se pudo cargar el Excel.</h3><p>${e.message}</p>`;
     }
 }
 
@@ -26,13 +37,21 @@ function renderApp() {
     renderShopping();
 }
 
-// --- MENÚ ---
 function renderMenu() {
     const container = document.getElementById('days-container');
     container.innerHTML = '';
     
-    const weekRows = allData.filter(r => r[0] == currentWeek && r[1].toLowerCase() !== 'dia');
-    const days = [...new Set(weekRows.map(r => r[1]))];
+    // Filtrar por semana actual (Columna 0)
+    const weekRows = allData.filter(r => r[0] == currentWeek);
+    
+    // Si no hay filas, avisamos
+    if (weekRows.length === 0) {
+        container.innerHTML = `<h3>⚠️ No hay platos para la Semana ${currentWeek}</h3><p>Revisa que la primera columna de tu Excel tenga el número ${currentWeek}.</p>`;
+        return;
+    }
+
+    // Días únicos
+    const days = [...new Set(weekRows.map(r => r[1]))].filter(d => d && d.toLowerCase() !== 'dia');
 
     days.forEach(day => {
         const dayRows = weekRows.filter(r => r[1] === day);
@@ -46,14 +65,14 @@ function renderMenu() {
             const row = dayRows.find(r => r[2] === m);
             if (row && row[3]) {
                 html += `
-                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #f2f2f2; cursor:pointer;" onclick="openRecipe('${day}')">
-                    <span style="font-size:0.9rem;"><strong>${m.charAt(0)}:</strong> ${row[3]}</span>
-                    <span style="font-size:0.6rem; background:#000; color:#fff; padding:3px 6px; border-radius:4px;">VER</span>
+                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #eee; cursor:pointer;" onclick="openRecipe('${day}')">
+                    <span><strong>${m.charAt(0)}:</strong> ${row[3]}</span>
+                    <button class="btn-mini" style="background:#000; color:#fff; border:none; padding:4px 8px; border-radius:5px; font-size:0.7rem;">VER</button>
                 </div>`;
             }
         });
 
-        if (dayRows.find(r => r[3] === 'LIBRE')) {
+        if (dayRows[0][3] === 'LIBRE') {
             html = `<h3>${day}</h3><p style="color:#999; font-style:italic;">✨ Día Libre</p>`;
         }
         
@@ -71,24 +90,26 @@ function openRecipe(day) {
     const n = dayRows.find(r => r[2] === 'Cena') || ["","","","-",""];
 
     document.getElementById('recipe-breakfast-name').innerText = d[3];
-    document.getElementById('recipe-breakfast-steps').innerText = d[4] || "Sin receta";
+    document.getElementById('recipe-breakfast-steps').innerText = d[4] || "Sin pasos";
     
     document.getElementById('recipe-lunch-name').innerText = c[3];
-    document.getElementById('recipe-lunch-steps').innerText = c[4] || "Sin receta";
+    document.getElementById('recipe-lunch-steps').innerText = c[4] || "Sin pasos";
     
     document.getElementById('recipe-dinner-name').innerText = n[3];
-    document.getElementById('recipe-dinner-steps').innerText = n[4] || "Sin receta";
+    document.getElementById('recipe-dinner-steps').innerText = n[4] || "Sin pasos";
 
     document.getElementById('recipe-view').classList.add('active');
 }
 
-function closeRecipe() { document.getElementById('recipe-view').classList.remove('active'); }
+function closeRecipe() {
+    document.getElementById('recipe-view').classList.remove('active');
+}
 
-// --- COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
+    if(!list) return;
     list.innerHTML = '';
-    const isSuper = document.getElementById('supermarket-mode').checked;
+    const isSuper = document.getElementById('supermarket-mode')?.checked;
 
     const pasillos = [
         { idx: 5, label: "🥩 Carnicería" },
@@ -115,11 +136,10 @@ function renderShopping() {
                 const id = `chk-${item[0]}-${p.idx}-${i}`;
                 const checked = localStorage.getItem(id) === 'true';
                 const li = document.createElement('li');
-                li.className = "checklist-item";
                 li.style = "list-style:none; padding:8px 0; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; gap:12px;";
                 li.innerHTML = `
                     <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="localStorage.setItem('${id}', this.checked)">
-                    <label for="${id}" style="font-size:1rem;">${isSuper ? `<small style="color:blue">S${item[0]}</small> ` : ''}${item[p.idx]}</label>
+                    <label for="${id}">${isSuper ? `<small style="color:blue">S${item[0]}</small> ` : ''}${item[p.idx]}</label>
                 `;
                 list.appendChild(li);
             });
