@@ -1,89 +1,53 @@
 :root {
-    --bg: #fbfbfd;
-    --card: #ffffff;
     --primary: #1d1d1f;
-    --accent: #86868b;
-    --border: #e8e8ed;
-    --meat: #fff5f5; --meat-txt: #e03131;
-    --fish: #f0f7ff; --fish-txt: #1971c2;
-    --veg: #f4fff4; --veg-txt: #2f9e44;
-    --cold: #f3f0ff; --cold-txt: #6741d9;
-    --shelf: #fff9db; --shelf-txt: #f08c00;
+    --accent: #0071e3;
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --border: #d2d2d7;
 }
 
 body { 
     font-family: 'Inter', sans-serif; background: var(--bg); color: var(--primary);
-    margin: 0; -webkit-font-smoothing: antialiased;
+    margin: 0; padding-bottom: 50px; -webkit-font-smoothing: antialiased;
 }
 
+/* Header */
 .minimal-header {
-    background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
-    padding: 15px 20px; position: sticky; top: 0; z-index: 50;
-    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.8); backdrop-filter: blur(20px);
+    padding: 20px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border);
 }
+.header-content h1 { margin: 0; font-size: 1.4rem; font-weight: 800; }
+.week-controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+.week-controls button { background: #e8e8ed; border: none; padding: 5px 15px; border-radius: 8px; font-weight: 600; }
 
-.header-content h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; }
+/* Tabs */
+.tabs-minimal { display: flex; background: #fff; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.tab-link { flex: 1; background: none; border: none; color: #86868b; font-weight: 600; font-size: 0.9rem; }
+.tab-link.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
 
-.week-controls { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.week-controls button { 
-    background: var(--border); border: none; border-radius: 6px; 
-    padding: 5px 12px; font-weight: 600; cursor: pointer;
-}
-
-.tabs-minimal { 
-    display: flex; justify-content: space-around; background: var(--card);
-    padding: 10px 0; position: sticky; top: 60px; z-index: 40; border-bottom: 1px solid var(--border);
-}
-
-.tab-link { 
-    background: none; border: none; color: var(--accent); font-weight: 600; 
-    font-size: 0.9rem; padding: 8px 15px; position: relative;
-}
-
-.tab-link.active { color: var(--primary); }
-.tab-link.active::after { 
-    content: ''; position: absolute; bottom: -10px; left: 0; width: 100%; height: 2px; background: var(--primary);
-}
-
-/* Cards */
+/* Menú Cards */
 .day-card { 
-    background: var(--card); margin: 15px; padding: 20px; border-radius: 18px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border);
+    background: var(--card); margin: 15px; padding: 20px; border-radius: 18px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
 }
-
-.meal-row { 
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 0; border-top: 1px solid var(--border);
-}
-
-.meal-row:first-of-type { border-top: none; }
-.meal-row strong { font-size: 0.7rem; text-transform: uppercase; color: var(--accent); display: block; }
-
-.btn-mini { background: #f2f2f7; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.75rem; }
+.day-card h3 { margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #f2f2f2; padding-bottom: 10px; }
+.menu-item-row { display: flex; align-items: center; padding: 12px 0; cursor: pointer; border-bottom: 1px solid #fafafa; }
+.momento-icon { font-size: 1.2rem; margin-right: 12px; }
+.plato-text { font-size: 0.95rem; }
 
 /* Compra */
-.super-mode-card { background: var(--primary); color: white; margin: 15px; padding: 20px; border-radius: 18px; }
-.shop-section { margin: 15px; padding: 15px; border-radius: 18px; }
-.cat-meat { background: var(--meat); color: var(--meat-txt); }
-.cat-fish { background: var(--fish); color: var(--fish-txt); }
-.cat-veg { background: var(--veg); color: var(--veg-txt); }
-.cat-cold { background: var(--cold); color: var(--cold-txt); }
-.cat-shelf { background: var(--shelf); color: var(--shelf-txt); }
+.shop-group { background: #fff; margin: 15px; padding: 15px; border-radius: 15px; }
+.shop-group h4 { font-size: 0.8rem; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px; }
+.checklist-minimal { list-style: none; padding: 0; }
+.checklist-minimal li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
+.checklist-minimal input { width: 18px; height: 18px; accent-color: var(--accent); }
 
-.shop-section h5 { margin: 0 0 10px 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }
-
-.checklist-minimal { list-style: none; padding: 0; margin: 0; }
-.checklist-minimal li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.03); }
-.checklist-minimal input { width: 18px; height: 18px; accent-color: var(--primary); }
-.checklist-minimal label { font-size: 0.95rem; font-weight: 500; color: #333; }
-
-/* Recetas Overlay */
-.recipe-overlay { 
-    display: none; position: fixed; inset: 0; background: white; z-index: 100;
-    padding: 20px; overflow-y: auto;
-}
-.recipe-overlay.active { display: block; animation: slideUp 0.3s ease-out; }
+/* Recetas */
+.hidden-view { display: none; position: fixed; inset: 0; background: #fff; z-index: 200; padding: 25px; overflow-y: auto; }
+.hidden-view.active { display: block; animation: slideUp 0.3s ease; }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+.recipe-card { background: #f9f9fb; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+.recipe-label { font-weight: 800; font-size: 0.7rem; text-transform: uppercase; color: var(--accent); }
+.recipe-dish { font-size: 1.2rem; font-weight: 700; margin: 5px 0; }
+.recipe-steps { font-size: 0.9rem; color: #444; line-height: 1.5; }
+.back-btn { background: var(--primary); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; }
