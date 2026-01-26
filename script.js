@@ -1,42 +1,27 @@
 let allData = [];
-let currentWeek = 3; 
+let currentWeek = 3;
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vROs3rKkPkBRckXovNQ3q6FqNIeaTD47d82QbULNJRZCZfl4E-Ekc26Iiq3xpAoq46Nnp8G3UU9c6PD/pub?output=csv";
 
-async function fetchData() {
-    const container = document.getElementById('days-container');
-    container.innerHTML = "<p style='text-align:center;'>⏳ Conectando con Google Sheets...</p>";
+document.addEventListener('DOMContentLoaded', fetchData);
 
+async function fetchData() {
     try {
         const response = await fetch(SHEET_URL);
-        if (!response.ok) throw new Error("No se pudo acceder a la URL del Excel.");
-        
         const text = await response.text();
-        // Limpiamos espacios en blanco locos y dividimos por filas
-        const rows = text.trim().split(/\r?\n/);
-
-        // DETECTOR DE SEPARADOR (Muy importante)
-        const firstLine = rows[0];
-        const delimiter = firstLine.includes(';') ? ';' : ',';
-        console.log("Separador detectado:", delimiter);
-
-        // Procesamos todas las filas
-        allData = rows.map(row => {
-            return row.split(delimiter).map(cell => cell.replace(/^["']|["']$/g, '').trim());
-        });
-
-        console.log("Datos cargados correctamente. Filas totales:", allData.length);
-        console.table(allData.slice(0, 5)); // Esto lo verás en la consola F12
-
+        const rows = text.trim().split('\n');
+        
+        // Procesamos filas usando PUNTO Y COMA
+        allData = rows.map(row => row.split(';').map(cell => cell.replace(/^["']|["']$/g, '').trim()));
+        
+        console.log("Datos cargados correctamente:", allData.length, "filas");
         renderApp();
     } catch (e) {
-        console.error("Error:", e);
-        container.innerHTML = `<p style='color:red; padding:20px;'>❌ Error: ${e.message}<br><br>Asegúrate de que el Excel esté "Publicado en la web" como CSV.</p>`;
+        console.error("Error cargando el Excel:", e);
     }
 }
 
 function renderApp() {
-    const label = document.getElementById('current-week-label');
-    if (label) label.innerText = `Semana ${currentWeek}`;
+    document.getElementById('current-week-label').innerText = `Semana ${currentWeek}`;
     renderMenu();
     renderShopping();
 }
@@ -45,16 +30,8 @@ function renderApp() {
 function renderMenu() {
     const container = document.getElementById('days-container');
     container.innerHTML = '';
-
-    // Filtramos: Semana coincide Y la columna 1 (Día) no está vacía Y no es la cabecera
-    const weekRows = allData.filter(r => r[0] == currentWeek && r[1] && r[1].toLowerCase() !== 'dia');
-
-    if (weekRows.length === 0) {
-        container.innerHTML = `<p style='text-align:center; padding:20px;'>No hay platos para la Semana ${currentWeek}.<br><small>Verifica que la columna A tenga el número ${currentWeek}.</small></p>`;
-        return;
-    }
-
-    // Obtenemos días únicos en esa semana
+    
+    const weekRows = allData.filter(r => r[0] == currentWeek && r[1].toLowerCase() !== 'dia');
     const days = [...new Set(weekRows.map(r => r[1]))];
 
     days.forEach(day => {
@@ -63,20 +40,20 @@ function renderMenu() {
         card.className = 'day-card';
         
         let html = `<h3>${day}</h3>`;
+        const momentos = ["Desayuno", "Comida", "Cena"];
         
-        // Buscamos los 3 momentos
-        ["Desayuno", "Comida", "Cena"].forEach(m => {
+        momentos.forEach(m => {
             const row = dayRows.find(r => r[2] === m);
             if (row && row[3]) {
                 html += `
-                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #eee; cursor:pointer;" onclick="openRecipe('${day}')">
-                    <span><strong>${m.charAt(0)}:</strong> ${row[3]}</span>
-                    <button class="btn-mini" style="background:#000; color:#fff; border:none; padding:4px 8px; border-radius:5px; font-size:0.7rem;">RECETA</button>
+                <div class="meal-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #f2f2f2; cursor:pointer;" onclick="openRecipe('${day}')">
+                    <span style="font-size:0.9rem;"><strong>${m.charAt(0)}:</strong> ${row[3]}</span>
+                    <span style="font-size:0.6rem; background:#000; color:#fff; padding:3px 6px; border-radius:4px;">VER</span>
                 </div>`;
             }
         });
 
-        if (dayRows[0][3] === 'LIBRE') {
+        if (dayRows.find(r => r[3] === 'LIBRE')) {
             html = `<h3>${day}</h3><p style="color:#999; font-style:italic;">✨ Día Libre</p>`;
         }
         
@@ -93,29 +70,26 @@ function openRecipe(day) {
     const c = dayRows.find(r => r[2] === 'Comida') || ["","","","-",""];
     const n = dayRows.find(r => r[2] === 'Cena') || ["","","","-",""];
 
-    document.getElementById('recipe-lunch-name').innerHTML = `🍱 ${c[3]}<br><small>☕ Desayuno: ${d[3]}</small>`;
-    document.getElementById('recipe-lunch-steps').innerHTML = `<strong>Comida:</strong> ${c[4] || 'Sin pasos'}<br><br><strong>Desayuno:</strong> ${d[4] || 'Sin pasos'}`;
+    document.getElementById('recipe-breakfast-name').innerText = d[3];
+    document.getElementById('recipe-breakfast-steps').innerText = d[4] || "Sin receta";
+    
+    document.getElementById('recipe-lunch-name').innerText = c[3];
+    document.getElementById('recipe-lunch-steps').innerText = c[4] || "Sin receta";
     
     document.getElementById('recipe-dinner-name').innerText = n[3];
-    document.getElementById('recipe-dinner-steps').innerText = n[4] || "Sin pasos";
+    document.getElementById('recipe-dinner-steps').innerText = n[4] || "Sin receta";
 
     document.getElementById('recipe-view').classList.add('active');
 }
 
-function closeRecipe() {
-    document.getElementById('recipe-view').classList.remove('active');
-}
+function closeRecipe() { document.getElementById('recipe-view').classList.remove('active'); }
 
 // --- COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
-    if (!list) return;
     list.innerHTML = '';
-    
-    const isSuper = document.getElementById('supermarket-mode')?.checked;
-    
-    // Mapeo exacto de tus 10 columnas:
-    // 0:Sem, 1:Dia, 2:Mom, 3:Plato, 4:Receta, 5:Carn, 6:Pesc, 7:Frut, 8:Refri, 9:Desp
+    const isSuper = document.getElementById('supermarket-mode').checked;
+
     const pasillos = [
         { idx: 5, label: "🥩 Carnicería" },
         { idx: 6, label: "🐟 Pescadería" },
@@ -134,17 +108,18 @@ function renderShopping() {
         if (items.length > 0) {
             const h = document.createElement('h4');
             h.innerText = p.label;
-            h.style = "margin:15px 0 5px 0; font-size:0.75rem; color:#888; text-transform:uppercase;";
+            h.style = "margin:20px 0 8px 0; font-size:0.75rem; color:#888; text-transform:uppercase;";
             list.appendChild(h);
             
             items.forEach((item, i) => {
                 const id = `chk-${item[0]}-${p.idx}-${i}`;
                 const checked = localStorage.getItem(id) === 'true';
                 const li = document.createElement('li');
-                li.style = "list-style:none; padding:8px 0; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;";
+                li.className = "checklist-item";
+                li.style = "list-style:none; padding:8px 0; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; gap:12px;";
                 li.innerHTML = `
                     <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="localStorage.setItem('${id}', this.checked)">
-                    <label for="${id}" style="font-size:0.95rem;">${isSuper ? `<small style="color:blue">S${item[0]}</small> ` : ''}${item[p.idx]}</label>
+                    <label for="${id}" style="font-size:1rem;">${isSuper ? `<small style="color:blue">S${item[0]}</small> ` : ''}${item[p.idx]}</label>
                 `;
                 list.appendChild(li);
             });
@@ -160,10 +135,6 @@ function changeWeek(d) {
 function showTab(tab) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
-    const target = document.getElementById(`${tab}-view`);
-    if(target) target.classList.add('active');
-    if(event) event.currentTarget.classList.add('active');
+    document.getElementById(`${tab}-view`).classList.add('active');
+    event.currentTarget.classList.add('active');
 }
-
-// Arrancar al cargar
-window.onload = fetchData;
