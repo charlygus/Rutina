@@ -38,19 +38,17 @@
         </div>
 
         <div id="shopping-view" class="tab-content">
-            <div class="shopping-actions" style="margin-bottom: 15px; display: flex; gap: 10px;">
-                <button onclick="copiarLista()" class="action-btn copy-btn">📋 Copiar</button>
-                <button onclick="limpiarChecks()" class="action-btn clear-btn">🗑️ Limpiar</button>
-            </div>
-
+            
             <div class="supermarket-control">
                 <span class="control-label">🛒 Modo Supermercado (2 Sem.)</span>
                 <label class="switch">
                     <input type="checkbox" id="super-mode-toggle" onchange="toggleSuperMode()">
-                    <span class="slider round"></span>
+                    <span class="slider"></span>
                 </label>
             </div>
-            <p id="shopping-subtitle" class="section-subtitle">Mostrando ingredientes...</p>
+            
+            <p id="shopping-subtitle" class="section-subtitle">Cargando ingredientes...</p>
+            
             <div class="minimal-section">
                 <ul id="shopping-list" class="checklist-minimal"></ul>
             </div>
@@ -85,7 +83,7 @@
                 <h2 id="modal-title">Plato</h2>
                 <button class="close-btn" onclick="cerrarReceta()">×</button>
             </div>
-            <div class="modal-body" id="modal-body">Letra pequeña</div>
+            <div class="modal-body" id="modal-body">...</div>
             <button class="modal-ok-btn" onclick="cerrarReceta()">Entendido</button>
         </div>
     </div>
