@@ -2,11 +2,14 @@
 const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 
+// 📅 FECHA DE INICIO DE LA ROTACIÓN (Lunes de la Semana 1)
+const FECHA_INICIO = new Date("2026-01-12T00:00:00"); 
+
 let planificadorData = [];
-let currentWeek = 1;
+let currentViewDate = new Date(); // La fecha que estamos viendo (siempre será Lunes)
 let supermarketMode = false;
 
-// Variables para el GESTO SWIPE
+// Variables Gesto Swipe
 let touchStartX = 0;
 let touchEndX = 0;
 
@@ -14,19 +17,17 @@ google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(cargarHistorialPeso);
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Calcular el Lunes de la semana actual real al arrancar
+    currentViewDate = getMonday(new Date());
+
     await loadData();
     
-    // Botones de flecha
     document.getElementById('prev-week').addEventListener('click', () => changeWeek(-1));
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 
-    // --- LOGICA DE SWIPE (DESLIZAR DEDO) ---
+    // Swipe
     const menuContainer = document.getElementById('menu-view');
-    
-    menuContainer.addEventListener('touchstart', e => {
-        touchStartX = e.changedTouches[0].screenX;
-    }, {passive: true});
-
+    menuContainer.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
     menuContainer.addEventListener('touchend', e => {
         touchEndX = e.changedTouches[0].screenX;
         handleSwipe();
@@ -34,15 +35,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function handleSwipe() {
-    // Umbral mínimo para considerar que es un swipe (50px)
-    if (touchEndX < touchStartX - 50) {
-        // Deslizar a Izquierda -> Siguiente Semana
-        changeWeek(1);
-    }
-    if (touchEndX > touchStartX + 50) {
-        // Deslizar a Derecha -> Semana Anterior
-        changeWeek(-1);
-    }
+    if (touchEndX < touchStartX - 50) changeWeek(1);
+    if (touchEndX > touchStartX + 50) changeWeek(-1);
+}
+
+// --- UTILIDAD DE FECHAS ---
+function getMonday(d) {
+    d = new Date(d);
+    var day = d.getDay(),
+        diff = d.getDate() - day + (day == 0 ? -6 : 1); // Ajuste para que Lunes sea el primer día
+    d.setDate(diff);
+    d.setHours(0,0,0,0); // Resetear hora para evitar errores
+    return d;
+}
+
+function formatDate(date) {
+    // Devuelve "27 Ene"
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '');
 }
 
 // --- CARGA DE DATOS ---
@@ -75,7 +84,7 @@ async function loadData() {
             return cleanRow;
         });
 
-        renderWeek(currentWeek);
+        renderWeek();
         renderShopping();
     } catch (e) {
         label.textContent = "Error";
@@ -83,25 +92,43 @@ async function loadData() {
     }
 }
 
+// --- CAMBIO DE SEMANA (LÓGICA TEMPORAL) ---
 function changeWeek(dir) {
-    let next = currentWeek + dir;
-    if (planificadorData.some(r => r.Semana == next)) {
-        currentWeek = next;
-        renderWeek(currentWeek);
-        supermarketMode = false; 
-        const toggle = document.getElementById('super-mode-toggle');
-        if(toggle) toggle.checked = false;
-        renderShopping();
-    }
+    // Sumamos o restamos 7 días a la fecha que estamos viendo
+    currentViewDate.setDate(currentViewDate.getDate() + (dir * 7));
+    
+    // Reseteamos modo super y renderizamos
+    supermarketMode = false;
+    const toggle = document.getElementById('super-mode-toggle');
+    if(toggle) toggle.checked = false;
+    
+    renderWeek();
+    renderShopping();
 }
 
-// --- RENDERIZADO DEL MENÚ (AHORA CON RECETAS) ---
-function renderWeek(num) {
-    document.getElementById('current-week-label').textContent = `Semana ${num}`;
+// --- RENDERIZADO DEL MENÚ (AHORA CON FECHAS) ---
+function renderWeek() {
+    // 1. Calcular qué número de semana (1-4) toca según la fecha
+    // Diferencia en milisegundos desde el inicio
+    const diffTime = currentViewDate - FECHA_INICIO;
+    // Convertir a semanas
+    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    
+    // Fórmula mágica para rotar 1, 2, 3, 4 infinitamente
+    // Usamos modulo matemáticas positivas para que funcione hacia el pasado
+    let semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
+
+    // 2. Calcular fecha fin de semana para el título
+    let finSemana = new Date(currentViewDate);
+    finSemana.setDate(finSemana.getDate() + 6);
+    
+    document.getElementById('current-week-label').innerHTML = 
+        `Semana ${semanaNum}<br><span style="font-size:0.7em; font-weight:normal;">${formatDate(currentViewDate)} - ${formatDate(finSemana)}</span>`;
+    
     const container = document.getElementById('days-container');
     container.innerHTML = '';
     
-    const filasSemana = planificadorData.filter(r => r.Semana == num);
+    const filasSemana = planificadorData.filter(r => r.Semana == semanaNum);
     
     if (filasSemana.length === 0) {
         container.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">Vacío...</p>`;
@@ -111,30 +138,45 @@ function renderWeek(num) {
     const diasAgrupados = {};
     const ordenDias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
+    // Procesar datos
     filasSemana.forEach(fila => {
         if (!fila.Dia) return;
         const diaLimpio = fila.Dia.trim().charAt(0).toUpperCase() + fila.Dia.trim().slice(1).toLowerCase();
         let diaKey = diaLimpio;
         if(diaLimpio === "Miercoles") diaKey = "Miércoles";
         if(diaLimpio === "Sabado") diaKey = "Sábado";
-
         if (!diasAgrupados[diaKey]) diasAgrupados[diaKey] = {};
         
-        // 🔥 AHORA GUARDAMOS EL OBJETO ENTERO (Plato + Receta)
         const datoPlato = { nombre: fila.Plato, receta: fila.Receta };
-
         const momento = (fila.Momento || "").toLowerCase();
         if(momento.includes("desayuno")) diasAgrupados[diaKey].Desayuno = datoPlato;
         if(momento.includes("comida")) diasAgrupados[diaKey].Comida = datoPlato;
         if(momento.includes("cena")) diasAgrupados[diaKey].Cena = datoPlato;
     });
 
-    ordenDias.forEach(nombreDia => {
+    // Pintar tarjetas con FECHAS CALCULADAS
+    const hoyReal = new Date();
+    hoyReal.setHours(0,0,0,0);
+
+    ordenDias.forEach((nombreDia, index) => {
+        // Calcular la fecha exacta de este día de la tarjeta
+        let fechaTarjeta = new Date(currentViewDate);
+        fechaTarjeta.setDate(fechaTarjeta.getDate() + index);
+        let fechaTexto = formatDate(fechaTarjeta);
+
         let platos = diasAgrupados[nombreDia];
         if (platos) {
+            // Comprobamos si es HOY (Día y Mes y Año exactos)
+            const esHoy = fechaTarjeta.getTime() === hoyReal.getTime();
+            const claseExtra = esHoy ? 'today' : '';
+            const idDia = esHoy ? 'id="dia-actual"' : '';
+
             container.innerHTML += `
-                <div class="day-item">
-                    <div class="day-header">${nombreDia}</div>
+                <div class="day-item ${claseExtra}" ${idDia}>
+                    <div class="day-header" style="display:flex; justify-content:space-between;">
+                        <span>${nombreDia}</span>
+                        <span style="color:#888; font-weight:normal;">${fechaTexto}</span>
+                    </div>
                     <div class="day-body">
                         ${renderMealRow('Desayuno', platos.Desayuno)}
                         ${renderMealRow('Comida', platos.Comida)}
@@ -143,48 +185,37 @@ function renderWeek(num) {
                 </div>`;
         }
     });
+
+    // Auto-scroll a hoy
+    setTimeout(() => {
+        const diaActual = document.getElementById('dia-actual');
+        if (diaActual) {
+            const y = diaActual.getBoundingClientRect().top + window.scrollY - 90;
+            window.scrollTo({top: y, behavior: 'smooth'});
+        }
+    }, 150);
 }
 
-// Helper para pintar la fila y añadir el evento onclick si hay receta
+// Helper para filas
 function renderMealRow(label, data) {
-    if (!data || !data.nombre) return `
-        <div class="meal-row">
-            <span class="meal-label">${label}</span>
-            <div class="meal-text">---</div>
-        </div>`;
-
-    // Si hay receta, ponemos clase clickable y evento onclick
-    // Escapamos comillas simples para que no rompa el HTML
+    if (!data || !data.nombre) return `<div class="meal-row"><span class="meal-label">${label}</span><div class="meal-text">---</div></div>`;
+    
     const recetaSafe = data.receta ? data.receta.replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
     const nombreSafe = data.nombre.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-    
-    const clickAttr = data.receta 
-        ? `class="meal-text meal-clickable" onclick="abrirReceta('${nombreSafe}', '${recetaSafe}')"` 
-        : `class="meal-text"`;
+    const clickAttr = data.receta ? `class="meal-text meal-clickable" onclick="abrirReceta('${nombreSafe}', '${recetaSafe}')"` : `class="meal-text"`;
 
-    return `
-        <div class="meal-row">
-            <span class="meal-label">${label}</span>
-            <div ${clickAttr}>${data.nombre} ${data.receta ? ' ℹ️' : ''}</div>
-        </div>`;
+    return `<div class="meal-row"><span class="meal-label">${label}</span><div ${clickAttr}>${data.nombre} ${data.receta ? ' ℹ️' : ''}</div></div>`;
 }
 
-// --- MODAL DE RECETAS ---
+// --- MODAL RECETAS ---
 window.abrirReceta = (plato, receta) => {
     document.getElementById('modal-title').textContent = plato;
     document.getElementById('modal-body').textContent = receta || "Sin instrucciones.";
     document.getElementById('recipe-modal').classList.add('open');
 };
+window.cerrarReceta = () => { document.getElementById('recipe-modal').classList.remove('open'); };
 
-window.cerrarReceta = () => {
-    document.getElementById('recipe-modal').classList.remove('open');
-};
-
-// --- EL RESTO DE FUNCIONES (COMPRA Y PESO) SIGUEN IGUAL ---
-// ... (Copia aquí abajo las funciones toggleSuperMode, renderShopping, enviarPeso, cargarHistorialPeso... del script anterior)
-// Para no hacer el mensaje eterno, el resto de la lógica de Compra y Peso NO cambia.
-// Solo asegúrate de tener toggleSuperMode, renderShopping, enviarPeso, cargarHistorialPeso, actualizarKPIs, dibujarGrafico, saveStatus y showTab.
-
+// --- COMPRA Y PESO (Actualizados para usar currentViewDate) ---
 function toggleSuperMode() {
     supermarketMode = document.getElementById('super-mode-toggle').checked;
     renderShopping();
@@ -195,18 +226,24 @@ function renderShopping() {
     const subtitle = document.getElementById('shopping-subtitle');
     list.innerHTML = '';
 
-    let targetWeeks = [currentWeek];
+    // Calcular el número de semana ACTUAL basado en currentViewDate
+    const diffTime = currentViewDate - FECHA_INICIO;
+    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    const semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
+
+    let targetWeeks = [semanaNum];
     if (supermarketMode) {
-        if (currentWeek <= 2) targetWeeks = [1, 2];
+        if (semanaNum <= 2) targetWeeks = [1, 2];
         else targetWeeks = [3, 4];
         subtitle.textContent = `Ingredientes semanas: ${targetWeeks.join(' y ')}`;
     } else {
-        subtitle.textContent = `Ingredientes semana ${currentWeek}`;
+        subtitle.textContent = `Ingredientes semana ${semanaNum}`;
     }
 
     const inventory = {}; 
     const colsIngredientes = ['Carniceria', 'Pescaderia', 'Fruteria', 'Refrigerados', 'Despensa'];
     
+    // Filtro usando '==' para flexibilidad
     const filasObjetivo = planificadorData.filter(r => targetWeeks.some(w => r.Semana == w));
 
     filasObjetivo.forEach(fila => {
@@ -227,10 +264,8 @@ function renderShopping() {
     });
 
     const sortedKeys = Object.keys(inventory).sort();
-    if (sortedKeys.length === 0) {
-        list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>';
-        return;
-    }
+    if (sortedKeys.length === 0) { list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>'; return; }
+    
     sortedKeys.forEach(key => {
         const data = inventory[key];
         const id = `shop-${supermarketMode?'super':'w'}-${targetWeeks.join('')}-${key.replace(/\s+/g, '')}`;
@@ -248,6 +283,7 @@ function renderShopping() {
     });
 }
 
+// --- PESO (Sin cambios) ---
 async function enviarPeso() {
     const input = document.getElementById('weight-input');
     const btn = document.getElementById('btn-save-weight');
@@ -261,10 +297,7 @@ async function enviarPeso() {
             body: JSON.stringify({ accion: 'guardar', peso: peso }),
             headers: { "Content-Type": "text/plain" }
         });
-        msg.textContent = "¡Guardado!";
-        input.value = '';
-        setTimeout(() => { msg.textContent = ''; }, 3000);
-        cargarHistorialPeso();
+        msg.textContent = "¡Guardado!"; input.value = ''; setTimeout(() => { msg.textContent = ''; }, 3000); cargarHistorialPeso();
     } catch (error) { msg.textContent = "Error conexión"; } 
     finally { btn.disabled = false; btn.textContent = "Guardar"; }
 }
@@ -273,10 +306,7 @@ async function cargarHistorialPeso() {
     try {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
         const json = await res.json();
-        if (json.datos && json.datos.length > 0) {
-            actualizarKPIs(json.datos);
-            dibujarGrafico(json.datos);
-        }
+        if (json.datos && json.datos.length > 0) { actualizarKPIs(json.datos); dibujarGrafico(json.datos); }
     } catch (e) { console.error("Error peso", e); }
 }
 
@@ -304,6 +334,26 @@ function dibujarGrafico(historial) {
     };
     const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
     chart.draw(data, options);
+}
+
+// --- UTILIDADES GLOBALES (Copiar y Limpiar checks) ---
+function copiarLista() {
+    const items = document.querySelectorAll('#shopping-list li');
+    let texto = "🛒 *LISTA DE LA COMPRA*\n\n";
+    items.forEach(li => {
+        const nombre = li.querySelector('.item-title').innerText.split('(')[0].trim();
+        const cantidad = li.querySelector('.item-title span').innerText;
+        const check = li.querySelector('input').checked ? "✅" : "⬜";
+        texto += `${check} ${nombre} ${cantidad}\n`;
+    });
+    navigator.clipboard.writeText(texto).then(() => { alert("¡Copiada al portapapeles!"); });
+}
+
+function limpiarChecks() {
+    if(confirm("¿Borrar marcados?")) {
+        Object.keys(localStorage).forEach(key => { if(key.startsWith('shop-')) localStorage.removeItem(key); });
+        renderShopping();
+    }
 }
 
 window.saveStatus = (id, state) => { localStorage.setItem(id, state); };
