@@ -2,10 +2,14 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rutina</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png?v=2">
+    <link rel="apple-touch-icon" href="favicon.png">
+    
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
@@ -14,60 +18,58 @@
         <div class="header-content">
             <h1>RUTINA</h1>
             <div class="week-controls">
-                <button onclick="changeWeek(-1)">←</button>
-                <span id="current-week-label">Cargando...</span>
-                <button onclick="changeWeek(1)">→</button>
+                <button id="prev-week">←</button>
+                <span id="current-week-label">...</span>
+                <button id="next-week">→</button>
             </div>
         </div>
     </header>
 
-    <nav class="tabs-minimal">
-        <button class="tab-link active" onclick="showTab('menu')">Menú</button>
-        <button class="tab-link" onclick="showTab('shopping')">Compra</button>
-        <button class="tab-link" onclick="showTab('weight')">Peso</button>
-    </nav>
-
     <main>
+        <div class="tabs-minimal">
+            <button class="tab-link active" onclick="showTab('menu')">Menú</button>
+            <button class="tab-link" onclick="showTab('shopping')">Compra</button>
+            <button class="tab-link" onclick="showTab('weight')">Peso</button>
+        </div>
+
         <div id="menu-view" class="tab-content active">
             <div id="days-container"></div>
-            
-            <div id="recipe-view" class="recipe-overlay">
-                <div class="recipe-sheet">
-                    <button class="close-bar" onclick="closeRecipe()"></button>
-                    <h2 id="recipe-day-title">Día</h2>
-                    <div id="recipe-container">
-                        </div>
-                </div>
-            </div>
         </div>
 
         <div id="shopping-view" class="tab-content">
-            <div class="shopping-container">
-                <div class="super-toggle-card">
-                    <input type="checkbox" id="supermarket-mode" onchange="renderShopping()">
-                    <label for="supermarket-mode">MODO SUPERMERCADO (S3 + S4)</label>
-                </div>
-                <div id="shopping-list"></div>
+            <div class="supermarket-control">
+                <span class="control-label">🛒 Modo Supermercado (2 Semanas)</span>
+                <label class="switch">
+                    <input type="checkbox" id="super-mode-toggle" onchange="toggleSuperMode()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <p id="shopping-subtitle" class="section-subtitle">Mostrando ingredientes de la semana actual</p>
+
+            <div class="minimal-section">
+                <ul id="shopping-list" class="checklist-minimal"></ul>
             </div>
         </div>
 
         <div id="weight-view" class="tab-content">
-            <div class="weight-card">
-                <div class="kpi-grid">
-                    <div class="kpi">
-                        <span class="label">Último Peso</span>
-                        <span class="value" id="last-weight">-- kg</span>
-                    </div>
-                    <div class="kpi">
-                        <span class="label">Tendencia</span>
-                        <span class="value" id="weight-trend">--</span>
-                    </div>
+            <div class="weight-summary">
+                <div class="kpi-box">
+                    <span class="kpi-label">Último Peso</span>
+                    <span class="kpi-value" id="last-weight">-- kg</span>
                 </div>
-                <div id="chart_div" class="chart-container"></div>
-                <div class="weight-input-group">
-                    <input type="number" id="weight-input" placeholder="00.0" step="0.1">
-                    <button onclick="enviarPeso()">Guardar</button>
+                <div class="kpi-box">
+                    <span class="kpi-label">Tendencia</span>
+                    <span class="kpi-value" id="weight-trend">--</span>
                 </div>
+            </div>
+            <div id="chart_div" class="chart-container"></div>
+            <div class="weight-input-section">
+                <h3>Registrar Progreso</h3>
+                <div class="input-group">
+                    <input type="number" id="weight-input" placeholder="Ej: 75.5" step="0.1">
+                    <button onclick="enviarPeso()" id="btn-save-weight">Guardar</button>
+                </div>
+                <p id="weight-msg" class="status-msg"></p>
             </div>
         </div>
     </main>
