@@ -1,5 +1,5 @@
 const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
-const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vROs3rKkPkBRckXovNQ3q6FqNIeaTD47d82QbULNJRZCZfl4E-Ekc26Iiq3xpAoq46Nnp8G3UU9c6PD/pub?output=csv'; // <--- ⚠️ PEGA AQUÍ TU URL
+const SCRIPT_URL = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; // <--- ⚠️ PEGA AQUÍ TU URL
 
 let planificadorData = [];
 let currentWeek = 1;
