@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rutina</title>
-    
     <link rel="icon" type="image/png" href="favicon.png?v=2">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
+
+    <div id="loading-screen">
+        <img src="favicon.png" alt="Cargando..." class="loading-logo">
+    </div>
 
     <header class="minimal-header">
         <div class="header-content">
@@ -35,6 +38,11 @@
         </div>
 
         <div id="shopping-view" class="tab-content">
+            <div class="shopping-actions" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                <button onclick="copiarLista()" class="action-btn copy-btn">📋 Copiar</button>
+                <button onclick="limpiarChecks()" class="action-btn clear-btn">🗑️ Limpiar</button>
+            </div>
+
             <div class="supermarket-control">
                 <span class="control-label">🛒 Modo Supermercado (2 Sem.)</span>
                 <label class="switch">
@@ -74,12 +82,10 @@
     <div id="recipe-modal" class="modal-overlay" onclick="cerrarReceta()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
-                <h2 id="modal-title">Título del Plato</h2>
+                <h2 id="modal-title">Plato</h2>
                 <button class="close-btn" onclick="cerrarReceta()">×</button>
             </div>
-            <div class="modal-body" id="modal-body">
-                Aquí van los pasos...
-            </div>
+            <div class="modal-body" id="modal-body">Letra pequeña</div>
             <button class="modal-ok-btn" onclick="cerrarReceta()">Entendido</button>
         </div>
     </div>
