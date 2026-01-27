@@ -1,16 +1,11 @@
-// ✅ CONFIGURACIÓN
-// Tu ID de la Hoja de Cálculo (El que empieza por 1xHYq...)
+// ✅ TUS DATOS CORRECTOS
 const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
-
-// ⚠️ Tu URL de Google Apps Script (Para que funcione el PESO)
-// Asegúrate de que esta URL es correcta, la copio de tu mensaje anterior:
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 
 let planificadorData = [];
 let currentWeek = 1;
 let supermarketMode = false;
 
-// Carga de gráficos
 google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(cargarHistorialPeso);
 
@@ -20,70 +15,106 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
 
-// --- CARGA DE DATOS (AHORA APUNTA A LA PESTAÑA "MENÚ") ---
+// --- FUNCIÓN INTELIGENTE DE CARGA ---
 async function loadData() {
     const label = document.getElementById('current-week-label');
     try {
-        // 🔥 CAMBIO CLAVE: Ahora buscamos la pestaña 'MENÚ'
-        // Usamos encodeURIComponent por si la tilde da problemas en algún navegador
         const nombrePestana = encodeURIComponent("MENÚ");
         const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/${nombrePestana}`);
-        planificadorData = await res.json();
+        const rawData = await res.json();
         
-        // Verificación de seguridad
-        if (!Array.isArray(planificadorData) || planificadorData.error) {
-            console.error("Respuesta de OpenSheet:", planificadorData);
-            throw new Error("No se encuentra la pestaña MENÚ o está vacía");
+        if (!Array.isArray(rawData) || rawData.error) {
+            console.error("Respuesta:", rawData);
+            throw new Error("No se pudo leer la hoja MENÚ.");
         }
+
+        // 🔥 NORMALIZADOR DE COLUMNAS (La Magia)
+        // Esto convierte 'semana', 'SEMANA', 'Día', 'dia '... todo al formato correcto.
+        planificadorData = rawData.map(row => {
+            const cleanRow = {};
+            Object.keys(row).forEach(key => {
+                // Quitamos tildes, espacios y ponemos minúsculas para comparar
+                const k = key.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                if (k === 'semana') cleanRow.Semana = row[key];
+                else if (k === 'dia') cleanRow.Dia = row[key];
+                else if (k === 'momento') cleanRow.Momento = row[key];
+                else if (k === 'plato') cleanRow.Plato = row[key];
+                else if (k === 'receta') cleanRow.Receta = row[key];
+                else if (k.includes('carniceria')) cleanRow.Carniceria = row[key];
+                else if (k.includes('pescaderia')) cleanRow.Pescaderia = row[key];
+                else if (k.includes('fruteria')) cleanRow.Fruteria = row[key];
+                else if (k.includes('refrigerado')) cleanRow.Refrigerados = row[key];
+                else if (k.includes('despensa')) cleanRow.Despensa = row[key];
+                else cleanRow[key] = row[key]; // Otros campos
+            });
+            return cleanRow;
+        });
+
+        // Debug: Chivato para saber qué ha leído
+        console.log("Datos procesados:", planificadorData[0]);
 
         renderWeek(currentWeek);
         renderShopping();
     } catch (e) {
-        label.textContent = "Error";
-        console.error("Error cargando datos:", e);
-        alert("Error: No encuentro la pestaña 'MENÚ' o faltan los títulos en la fila 1.");
+        label.textContent = "Error Datos";
+        console.error(e);
+        alert("Error: Revisa que la pestaña se llame MENÚ y tenga datos.");
     }
 }
 
 function changeWeek(dir) {
     let next = currentWeek + dir;
-    // Comprobamos si existe esa semana en los datos
+    // Usamos '==' para que le de igual si es texto "1" o número 1
     if (planificadorData.some(r => r.Semana == next)) {
         currentWeek = next;
         renderWeek(currentWeek);
-        
-        // Al cambiar de semana, desactivamos el modo super
         supermarketMode = false; 
         const toggle = document.getElementById('super-mode-toggle');
         if(toggle) toggle.checked = false;
-        
         renderShopping();
     }
 }
 
-// --- RENDERIZADO DEL MENÚ ---
 function renderWeek(num) {
     document.getElementById('current-week-label').textContent = `Semana ${num}`;
     const container = document.getElementById('days-container');
     container.innerHTML = '';
     
-    // 1. Filtramos filas de la semana
+    // Filtro flexible (==)
     const filasSemana = planificadorData.filter(r => r.Semana == num);
     
-    // 2. Agrupamos por DÍA
+    if (filasSemana.length === 0) {
+        container.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">No hay datos para la Semana ${num}</p>`;
+        return;
+    }
+
     const diasAgrupados = {};
     const ordenDias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
     filasSemana.forEach(fila => {
-        const dia = (fila.Dia || fila.Día || "").trim();
-        if (!diasAgrupados[dia]) diasAgrupados[dia] = {};
-        diasAgrupados[dia][fila.Momento] = fila.Plato;
+        if (!fila.Dia) return;
+        // Normalizamos el día para agrupar aunque pongas "lunes "
+        const diaLimpio = fila.Dia.trim().charAt(0).toUpperCase() + fila.Dia.trim().slice(1).toLowerCase();
+        // Mapeo manual por si las tildes fallan
+        let diaKey = diaLimpio;
+        if(diaLimpio === "Miercoles") diaKey = "Miércoles";
+        if(diaLimpio === "Sabado") diaKey = "Sábado";
+
+        if (!diasAgrupados[diaKey]) diasAgrupados[diaKey] = {};
+        
+        // Normalizar momento
+        const momento = (fila.Momento || "").toLowerCase();
+        if(momento.includes("desayuno")) diasAgrupados[diaKey].Desayuno = fila.Plato;
+        if(momento.includes("comida")) diasAgrupados[diaKey].Comida = fila.Plato;
+        if(momento.includes("cena")) diasAgrupados[diaKey].Cena = fila.Plato;
     });
 
-    // 3. Pintamos tarjetas
     ordenDias.forEach(nombreDia => {
-        if (diasAgrupados[nombreDia]) {
-            const platos = diasAgrupados[nombreDia];
+        // Buscamos ignorando tildes en la clave por si acaso
+        let platos = diasAgrupados[nombreDia];
+        
+        if (platos) {
             container.innerHTML += `
                 <div class="day-item">
                     <div class="day-header">${nombreDia}</div>
@@ -106,7 +137,6 @@ function renderWeek(num) {
     });
 }
 
-// --- LÓGICA DE COMPRA INTELIGENTE ---
 function toggleSuperMode() {
     supermarketMode = document.getElementById('super-mode-toggle').checked;
     renderShopping();
@@ -117,7 +147,6 @@ function renderShopping() {
     const subtitle = document.getElementById('shopping-subtitle');
     list.innerHTML = '';
 
-    // 1. Definir semanas
     let targetWeeks = [currentWeek];
     if (supermarketMode) {
         if (currentWeek <= 2) targetWeeks = [1, 2];
@@ -127,19 +156,16 @@ function renderShopping() {
         subtitle.textContent = `Ingredientes semana ${currentWeek}`;
     }
 
-    // 2. Procesar ingredientes
     const inventory = {}; 
     const colsIngredientes = ['Carniceria', 'Pescaderia', 'Fruteria', 'Refrigerados', 'Despensa'];
-
-    const filasObjetivo = planificadorData.filter(r => targetWeeks.includes(parseInt(r.Semana)));
+    
+    // Filtro flexible
+    const filasObjetivo = planificadorData.filter(r => targetWeeks.some(w => r.Semana == w));
 
     filasObjetivo.forEach(fila => {
         colsIngredientes.forEach(col => {
-            // Buscamos la columna, intentando también con tildes por si acaso
-            let contenido = fila[col] || fila[col.normalize("NFD").replace(/[\u0300-\u036f]/g, "")];
-            
-            if (contenido) {
-                const items = contenido.toString().split(',');
+            if (fila[col]) {
+                const items = fila[col].toString().split(',');
                 items.forEach(rawItem => {
                     let item = rawItem.trim();
                     if (!item) return;
@@ -152,18 +178,17 @@ function renderShopping() {
                     }
                     inventory[key].count++;
                     inventory[key].origins.push(
-                        `S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Momento}`
+                        `S${fila.Semana} ${fila.Dia}: ${fila.Momento}`
                     );
                 });
             }
         });
     });
 
-    // 3. Pintar lista
     const sortedKeys = Object.keys(inventory).sort();
 
     if (sortedKeys.length === 0) {
-        list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes. Revisa las columnas del Excel.</li>';
+        list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>';
         return;
     }
 
@@ -171,6 +196,7 @@ function renderShopping() {
         const data = inventory[key];
         const id = `shop-${supermarketMode?'super':'w'}-${targetWeeks.join('')}-${key.replace(/\s+/g, '')}`;
         const checked = localStorage.getItem(id) === 'true';
+        // Limitamos visualmente los orígenes para no saturar
         const detailsHtml = data.origins.map(o => `<span>• ${o}</span>`).join('<br>');
 
         list.innerHTML += `
@@ -187,7 +213,7 @@ function renderShopping() {
     });
 }
 
-// --- LÓGICA PESO ---
+// --- PESO ---
 async function enviarPeso() {
     const input = document.getElementById('weight-input');
     const btn = document.getElementById('btn-save-weight');
@@ -209,7 +235,7 @@ async function enviarPeso() {
         setTimeout(() => { msg.textContent = ''; }, 3000);
         cargarHistorialPeso();
     } catch (error) {
-        msg.textContent = "Error conexión"; console.error(error);
+        msg.textContent = "Error conexión"; 
     } finally {
         btn.disabled = false; btn.textContent = "Guardar";
     }
@@ -252,7 +278,6 @@ function dibujarGrafico(historial) {
     chart.draw(data, options);
 }
 
-// --- UTILIDADES ---
 window.saveStatus = (id, state) => { localStorage.setItem(id, state); };
 window.showTab = (name) => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
