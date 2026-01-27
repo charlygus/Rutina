@@ -7,132 +7,73 @@
     --button-active: #000000;
 }
 
-/* FIX MOVIL: Prevenir scroll lateral y zoom */
-html, body {
-    overflow-x: hidden;
-    touch-action: manipulation; /* Mejora la respuesta táctil */
-}
+/* FIX MOVIL */
+html, body { overflow-x: hidden; touch-action: manipulation; scroll-behavior: smooth; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 50px; -webkit-font-smoothing: antialiased; }
 
-body {
-    font-family: 'Inter', -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    margin: 0;
-    padding-bottom: 50px;
-    -webkit-font-smoothing: antialiased;
-}
-
-.minimal-header {
-    background: rgba(255,255,255,0.98);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    padding: 15px;
-}
-
-.header-content {
-    max-width: 600px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-h1 { font-size: 1rem; letter-spacing: 2px; margin: 0; font-weight: 600; }
-
-.week-controls { display: flex; align-items: center; gap: 12px; }
-.week-controls button {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    width: 32px; height: 32px;
-    cursor: pointer;
+/* 🟢 PANTALLA DE CARGA */
+#loading-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #ffffff; z-index: 9999;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.2rem; /* Flechas más grandes para el dedo */
+    transition: opacity 0.4s ease-out, visibility 0.4s;
 }
+#loading-screen.hidden { opacity: 0; visibility: hidden; }
+.loading-logo {
+    width: 80px; height: 80px;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+@keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.8; } }
 
+/* HEADER */
+.minimal-header { background: rgba(255,255,255,0.98); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; padding: 15px; }
+.header-content { max-width: 600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+h1 { font-size: 1rem; letter-spacing: 2px; margin: 0; font-weight: 600; }
+.week-controls { display: flex; align-items: center; gap: 12px; }
+.week-controls button { background: transparent; border: 1px solid var(--border); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+/* TABS */
 .tabs-minimal { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
-.tab-link {
-    background: var(--button-bg); border: none; padding: 10px 20px;
-    border-radius: 25px; font-weight: 600; color: var(--text-light); cursor: pointer;
-    font-size: 0.9rem;
-}
+.tab-link { background: var(--button-bg); border: none; padding: 10px 20px; border-radius: 25px; font-weight: 600; color: var(--text-light); cursor: pointer; font-size: 0.9rem; }
 .tab-link.active { background: var(--button-active); color: #ffffff; }
-
 main { max-width: 600px; margin: 0 auto; padding: 0 15px; }
-
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* TARJETAS DÍA */
 .day-item {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    margin-bottom: 16px;
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.03); /* Sombra sutil */
+    border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: all 0.3s ease;
 }
-.day-header {
-    background: #fafafa; padding: 12px 15px; font-weight: 600;
-    font-size: 0.85rem; border-bottom: 1px solid var(--border);
-    text-transform: uppercase;
-}
+.day-header { background: #fafafa; padding: 12px 15px; font-weight: 600; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
 .day-body { padding: 15px; }
-
 .meal-row { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #f0f0f0; }
 .meal-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.meal-label { display: block; font-size: 0.7rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
+.meal-text { font-size: 0.95rem; line-height: 1.4; color: #000; }
+.meal-clickable { cursor: pointer; text-decoration: underline; text-decoration-color: #ddd; text-underline-offset: 3px; }
 
-.meal-label {
-    display: block; font-size: 0.7rem; color: var(--text-light);
-    text-transform: uppercase; font-weight: 600; margin-bottom: 3px;
+/* 🟢 DÍA ACTUAL DESTACADO (SUTIL) */
+.day-item.today {
+    background-color: #fffcf5; /* Un tono crema muy sutil */
+    border-color: #e0d8c0;     /* Borde ligeramente más cálido */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08); /* Sombra un poco más elevada */
+    transform: scale(1.01);
 }
 
-/* ESTILO INTERACTIVO PARA EL PLATO */
-.meal-text { 
-    font-size: 0.95rem; line-height: 1.4; color: #000;
-}
-.meal-clickable {
-    cursor: pointer;
-    text-decoration: underline;
-    text-decoration-color: #ddd;
-    text-underline-offset: 3px;
-    transition: color 0.2s;
-}
-.meal-clickable:active { color: #555; background: #f9f9f9; }
-
-/* MODAL DE RECETA */
-.modal-overlay {
-    display: none; /* Oculto por defecto */
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 1000;
-    align-items: center; justify-content: center;
-    backdrop-filter: blur(3px);
-}
+/* MODAL RECETAS */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
 .modal-overlay.open { display: flex; }
-
-.modal-content {
-    background: #fff; width: 85%; max-width: 400px;
-    border-radius: 16px; padding: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-}
+.modal-content { background: #fff; width: 85%; max-width: 400px; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s; }
 @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-.modal-header h2 { font-size: 1.1rem; margin: 0; line-height: 1.3; }
-.close-btn { background: none; border: none; font-size: 1.5rem; color: #999; cursor: pointer; padding: 0 5px; }
-
+.modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+.modal-header h2 { font-size: 1.1rem; margin: 0; }
+.close-btn { background: none; border: none; font-size: 1.5rem; color: #999; cursor: pointer; }
 .modal-body { font-size: 0.95rem; line-height: 1.6; color: #444; max-height: 60vh; overflow-y: auto; }
+.modal-ok-btn { width: 100%; background: #000; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 600; margin-top: 20px; cursor: pointer; }
 
-.modal-ok-btn {
-    width: 100%; background: #000; color: #fff; border: none;
-    padding: 12px; border-radius: 10px; font-weight: 600; font-size: 1rem;
-    margin-top: 20px; cursor: pointer;
-}
-
-/* Otros */
+/* COMPRA Y OTROS */
 .checklist-minimal li { padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; }
 .checklist-minimal input { width: 20px; height: 20px; margin-right: 15px; accent-color: #000; }
 .supermarket-control { display: flex; justify-content: space-between; align-items: center; background: #fafafa; padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px; }
@@ -143,4 +84,6 @@ main { max-width: 600px; margin: 0 auto; padding: 0 15px; }
 input:checked + .slider { background-color: #000; }
 input:checked + .slider:before { transform: translateX(20px); }
 .slider.round { border-radius: 34px; }
-.slider.round:before { border-radius: 50%; }
+.action-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+.copy-btn { background: #e0e0e0; color: #333; }
+.clear-btn { background: #ffebee; color: #c62828; }
