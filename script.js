@@ -1,11 +1,12 @@
-const SHEET_ID = '1jMrd9A3Pvs-r606i8H6NYp6RAw-46rE5tlGfXUL0QK4';
-const SCRIPT_URL = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; // <--- ⚠️ PEGA AQUÍ TU URL
+// ✅ CONFIGURACIÓN CORREGIDA
+const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 
 let planificadorData = [];
 let currentWeek = 1;
 let supermarketMode = false;
 
-// Carga de gráficos
+// Carga de gráficos (Google Charts)
 google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(cargarHistorialPeso);
 
@@ -15,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
 });
 
-// --- CARGA DE DATOS (NUEVA ESTRUCTURA) ---
+// --- CARGA DE DATOS (NUEVA ESTRUCTURA PLANIFICADOR) ---
 async function loadData() {
     const label = document.getElementById('current-week-label');
     try {
@@ -23,52 +24,58 @@ async function loadData() {
         const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/Planificador`);
         planificadorData = await res.json();
         
-        if (!Array.isArray(planificadorData) || planificadorData.error) throw new Error();
+        // Verificación de seguridad
+        if (!Array.isArray(planificadorData) || planificadorData.error) {
+            throw new Error("Formato incorrecto o hoja no encontrada");
+        }
 
         renderWeek(currentWeek);
         renderShopping();
     } catch (e) {
         label.textContent = "Error";
-        console.error("Error al cargar Google Sheets", e);
+        console.error("Error al cargar Google Sheets. Revisa que la pestaña se llame 'Planificador'", e);
     }
 }
 
 function changeWeek(dir) {
     let next = currentWeek + dir;
-    // Comprobamos si existe algo de esa semana en los datos
+    // Comprobamos si existe algo de esa semana en los datos para no pasarnos
     if (planificadorData.some(r => r.Semana == next)) {
         currentWeek = next;
         renderWeek(currentWeek);
-        // Al cambiar de semana, desactivamos el modo super por seguridad visual
+        
+        // Al cambiar de semana, desactivamos el modo super por claridad
         supermarketMode = false; 
-        document.getElementById('super-mode-toggle').checked = false;
+        const toggle = document.getElementById('super-mode-toggle');
+        if(toggle) toggle.checked = false;
+        
         renderShopping();
     }
 }
 
-// --- RENDERIZADO DEL MENÚ (Adaptado a filas) ---
+// --- RENDERIZADO DEL MENÚ ---
 function renderWeek(num) {
     document.getElementById('current-week-label').textContent = `Semana ${num}`;
     const container = document.getElementById('days-container');
     container.innerHTML = '';
     
-    // Filtramos filas de esta semana
+    // 1. Filtramos las filas de la semana actual
     const filasSemana = planificadorData.filter(r => r.Semana == num);
     
-    // Agrupamos por DÍA (Lunes, Martes...) para crear las tarjetas
-    // Objeto temporal: { "Lunes": { Desayuno: "...", Comida: "..." }, "Martes": ... }
+    // 2. Agrupamos por DÍA para montar las tarjetas
     const diasAgrupados = {};
     const ordenDias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
     filasSemana.forEach(fila => {
-        const dia = fila.Dia; // Asegúrate de que en Excel sea "Dia" (o "Día")
+        // Normalizamos el nombre del día (quita espacios extra)
+        const dia = (fila.Dia || fila.Día || "").trim();
         if (!diasAgrupados[dia]) diasAgrupados[dia] = {};
         
-        // Guardamos el plato según el momento
+        // Guardamos el plato según el momento (Desayuno/Comida/Cena)
         diasAgrupados[dia][fila.Momento] = fila.Plato;
     });
 
-    // Pintamos las tarjetas en orden
+    // 3. Pintamos las tarjetas
     ordenDias.forEach(nombreDia => {
         if (diasAgrupados[nombreDia]) {
             const platos = diasAgrupados[nombreDia];
@@ -109,7 +116,7 @@ function renderShopping() {
     let targetWeeks = [currentWeek];
     
     if (supermarketMode) {
-        // Si es modo super: Agrupa 1-2 o 3-4
+        // Modo Super: Agrupa 1-2 o 3-4
         if (currentWeek <= 2) targetWeeks = [1, 2];
         else targetWeeks = [3, 4];
         subtitle.textContent = `Mostrando ingredientes semanas: ${targetWeeks.join(' y ')}`;
@@ -117,11 +124,8 @@ function renderShopping() {
         subtitle.textContent = `Mostrando ingredientes de la semana ${currentWeek}`;
     }
 
-    // 2. Extraer y procesar ingredientes
-    // Mapa para agrupar: { "yogur": { count: 3, details: ["Sem 1 Lun Desayuno", ...] } }
+    // 2. Procesar ingredientes
     const inventory = {}; 
-
-    // Columnas donde hay ingredientes
     const colsIngredientes = ['Carniceria', 'Pescaderia', 'Fruteria', 'Refrigerados', 'Despensa'];
 
     // Filtramos las filas de las semanas objetivo
@@ -130,16 +134,16 @@ function renderShopping() {
     filasObjetivo.forEach(fila => {
         colsIngredientes.forEach(col => {
             if (fila[col]) {
-                // Separar por comas (por si hay varios en una celda)
+                // Separar por comas
                 const items = fila[col].toString().split(',');
                 
                 items.forEach(rawItem => {
                     let item = rawItem.trim();
                     if (!item) return;
 
-                    // Normalizar nombre (primera mayúscula, resto minúscula para agrupar)
-                    // "Yogur Griego" y "yogur griego" serán lo mismo
+                    // Clave para agrupar (minúsculas)
                     let key = item.toLowerCase();
+                    // Nombre bonito (Capitalizado)
                     let display = item.charAt(0).toUpperCase() + item.slice(1);
 
                     if (!inventory[key]) {
@@ -147,7 +151,7 @@ function renderShopping() {
                     }
 
                     inventory[key].count++;
-                    // Añadir detalle de origen (Semana X Dia Momento: Plato)
+                    // Guardamos origen: "S1 Lun: Comida (Plato)"
                     inventory[key].origins.push(
                         `S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Momento} (${fila.Plato})`
                     );
@@ -156,22 +160,21 @@ function renderShopping() {
         });
     });
 
-    // 3. Pintar la lista
+    // 3. Pintar la lista ordenada
     const sortedKeys = Object.keys(inventory).sort();
 
     if (sortedKeys.length === 0) {
-        list.innerHTML = '<li style="color:#aaa; border:none; padding:15px;">No hay ingredientes registrados.</li>';
+        list.innerHTML = '<li style="color:#aaa; border:none; padding:15px;">No hay ingredientes para esta selección.</li>';
         return;
     }
 
     sortedKeys.forEach(key => {
         const data = inventory[key];
-        // ID único para el checkbox (basado en modo super y semanas)
+        // ID único para guardar el check en memoria
         const id = `shop-${supermarketMode?'super':'w'}-${targetWeeks.join('')}-${key.replace(/\s+/g, '')}`;
         const checked = localStorage.getItem(id) === 'true';
 
-        // Crear el HTML de los detalles (origins)
-        // Si hay muchos, mostramos solo los primeros o un resumen
+        // Formatear detalles (origins)
         const detailsHtml = data.origins.map(o => `<span>• ${o}</span>`).join('<br>');
 
         list.innerHTML += `
@@ -191,14 +194,14 @@ function renderShopping() {
 }
 
 
-// --- LÓGICA PESO (Intacta) ---
+// --- LÓGICA PESO (API Google Script) ---
 async function enviarPeso() {
     const input = document.getElementById('weight-input');
     const btn = document.getElementById('btn-save-weight');
     const msg = document.getElementById('weight-msg');
     
     const peso = parseFloat(input.value);
-    if (!peso || peso <= 0) { msg.textContent = "Peso no válido"; return; }
+    if (!peso || peso <= 0) { msg.textContent = "Introduce un peso válido"; return; }
 
     btn.disabled = true; btn.textContent = "..."; msg.textContent = "Guardando...";
 
@@ -211,9 +214,10 @@ async function enviarPeso() {
         msg.textContent = "¡Guardado!";
         input.value = '';
         setTimeout(() => { msg.textContent = ''; }, 3000);
-        cargarHistorialPeso();
+        cargarHistorialPeso(); // Recargar gráfica
     } catch (error) {
-        msg.textContent = "Error"; console.error(error);
+        msg.textContent = "Error de conexión"; 
+        console.error(error);
     } finally {
         btn.disabled = false; btn.textContent = "Guardar";
     }
@@ -223,16 +227,18 @@ async function cargarHistorialPeso() {
     try {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
         const json = await res.json();
+        
         if (json.datos && json.datos.length > 0) {
             actualizarKPIs(json.datos);
             dibujarGrafico(json.datos);
         }
-    } catch (e) { console.error("Error peso", e); }
+    } catch (e) { console.error("Error cargando historial peso", e); }
 }
 
 function actualizarKPIs(datos) {
     const actual = datos[datos.length - 1].peso;
     document.getElementById('last-weight').textContent = actual + " kg";
+    
     if (datos.length > 1) {
         const previo = datos[datos.length - 2].peso;
         const diff = actual - previo;
@@ -245,23 +251,33 @@ function actualizarKPIs(datos) {
 function dibujarGrafico(historial) {
     const dataArray = [['Fecha', 'Peso']];
     historial.forEach(reg => dataArray.push([reg.fecha, parseFloat(reg.peso)]));
+
     const data = google.visualization.arrayToDataTable(dataArray);
+
     const options = {
-        curveType: 'function', legend: { position: 'none' }, colors: ['#000'],
-        lineWidth: 3, pointSize: 5, vAxis: { gridlines: { color: '#f0f0f0' } },
+        curveType: 'function',
+        legend: { position: 'none' },
+        colors: ['#000'],
+        lineWidth: 3,
+        pointSize: 5,
+        vAxis: { gridlines: { color: '#f0f0f0' } },
         hAxis: { textStyle: { color: '#999', fontSize: 10 } },
         chartArea: { width: '85%', height: '80%' }
     };
+
     const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
     chart.draw(data, options);
 }
 
-// --- UTILIDADES ---
+// --- UTILIDADES GLOBALES ---
 window.saveStatus = (id, state) => { localStorage.setItem(id, state); };
+
 window.showTab = (name) => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
+    
     document.getElementById(name + '-view').classList.add('active');
     if (event) event.currentTarget.classList.add('active');
+    
     if (name === 'weight') cargarHistorialPeso();
 };
