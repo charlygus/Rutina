@@ -1,4 +1,4 @@
-// ✅ TUS DATOS
+// ✅ TUS DATOS MAESTROS
 const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 const FECHA_INICIO = new Date("2026-01-12T00:00:00"); 
@@ -7,7 +7,7 @@ let planificadorData = [];
 let currentViewDate = new Date();
 let supermarketMode = false;
 let touchStartX = 0; let touchEndX = 0;
-let wakeLock = null; 
+let wakeLock = null;
 
 google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(cargarHistorialPeso);
@@ -26,6 +26,7 @@ function handleSwipe() { if (touchEndX < touchStartX - 50) changeWeek(1); if (to
 function getMonday(d) { d = new Date(d); var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
 function formatDate(date) { return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', ''); }
 
+// CARGA DE DATOS
 async function loadData() {
     try {
         const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/MENÚ`);
@@ -107,19 +108,15 @@ function renderMealRow(label, data) {
     return `<div class="meal-row"><span class="meal-label">${label}</span><div ${clickAttr}>${data.nombre} ${data.receta ? ' ℹ️' : ''}</div></div>`;
 }
 
+// COMPRA POR PASILLOS
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     const subtitle = document.getElementById('shopping-subtitle');
     list.innerHTML = '';
-
-    const diffTime = currentViewDate - FECHA_INICIO;
-    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
-    const semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
-    let targetWeeks = [semanaNum];
-    if (supermarketMode) { if (semanaNum <= 2) targetWeeks = [1, 2]; else targetWeeks = [3, 4]; subtitle.textContent = `Ingredientes semanas: ${targetWeeks.join(' y ')}`; } else { subtitle.textContent = `Ingredientes semana ${semanaNum}`; }
-
+    const diffTime = currentViewDate - FECHA_INICIO; const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)); const semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
+    let targetWeeks = [semanaNum]; if (supermarketMode) { if (semanaNum <= 2) targetWeeks = [1, 2]; else targetWeeks = [3, 4]; subtitle.textContent = `Ingredientes semanas: ${targetWeeks.join(' y ')}`; } else { subtitle.textContent = `Ingredientes semana ${semanaNum}`; }
     const categorias = [
         { id: 'Fruteria', icono: '🥦', titulo: 'Frutería y Verduras' },
         { id: 'Carniceria', icono: '🥩', titulo: 'Carnicería' },
@@ -127,10 +124,8 @@ function renderShopping() {
         { id: 'Refrigerados', icono: '❄️', titulo: 'Refrigerados y Lácteos' },
         { id: 'Despensa', icono: '🥫', titulo: 'Despensa y Varios' }
     ];
-
     const inventory = {}; categorias.forEach(cat => inventory[cat.id] = {});
     const filasObjetivo = planificadorData.filter(r => targetWeeks.some(w => r.Semana == w));
-
     filasObjetivo.forEach(fila => {
         categorias.forEach(cat => {
             if (fila[cat.id]) {
@@ -140,15 +135,11 @@ function renderShopping() {
                     let key = item.toLowerCase(); let display = item.charAt(0).toUpperCase() + item.slice(1);
                     if (!inventory[cat.id][key]) inventory[cat.id][key] = { name: display, count: 0, origins: [] };
                     inventory[cat.id][key].count++;
-                    
-                    // 🔥 LÓGICA DE PLATO ACORTADO: Recortamos el plato a 15 letras
-                    let platoCorto = fila.Plato ? (fila.Plato.length > 15 ? fila.Plato.substring(0, 15) + "..." : fila.Plato) : "---";
-                    inventory[cat.id][key].origins.push(`S${fila.Semana} ${fila.Dia.substring(0,3)}: ${platoCorto}`);
+                    inventory[cat.id][key].origins.push(`S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Plato || '---'}`);
                 });
             }
         });
     });
-
     let hayAlgo = false;
     categorias.forEach(cat => {
         const itemsCategoria = inventory[cat.id];
@@ -168,9 +159,9 @@ function renderShopping() {
     if (!hayAlgo) list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>';
 }
 
-// --- GESTIÓN DE PANTALLA (WAKE LOCK) ---
-async function activarPantalla() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); console.log("WakeLock Activo"); } catch (err) {} } }
-function desactivarPantalla() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; console.log("WakeLock Liberado"); }); } }
+// GESTIÓN WAKE LOCK (PANTALLA ACTIVA)
+async function activarPantalla() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} } }
+function desactivarPantalla() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); } }
 
 window.abrirReceta = (plato, receta) => {
     document.getElementById('modal-title').textContent = plato;
@@ -180,35 +171,21 @@ window.abrirReceta = (plato, receta) => {
 };
 window.cerrarReceta = () => {
     document.getElementById('recipe-modal').classList.remove('open');
-    // Solo desactivamos si NO estamos en la pestaña de compra
-    if (document.querySelector('.tab-link.active').innerText !== 'Compra') {
-        desactivarPantalla();
-    }
+    if (document.querySelector('.tab-link.active').innerText !== 'Compra') desactivarPantalla();
 };
 
-// --- PESO Y TABS ---
+// PESO Y TABS
 async function enviarPeso() { const input = document.getElementById('weight-input'); const btn = document.getElementById('btn-save-weight'); const msg = document.getElementById('weight-msg'); const peso = parseFloat(input.value); if (!peso || peso <= 0) { msg.textContent = "Peso incorrecto"; return; } btn.disabled = true; btn.textContent = "..."; msg.textContent = "Guardando..."; try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: peso }), headers: { "Content-Type": "text/plain" } }); msg.textContent = "¡Guardado!"; input.value = ''; setTimeout(() => { msg.textContent = ''; }, 3000); cargarHistorialPeso(); } catch (error) { msg.textContent = "Error conexión"; } finally { btn.disabled = false; btn.textContent = "Guardar"; } }
 async function cargarHistorialPeso() { try { const res = await fetch(`${SCRIPT_URL}?accion=leer`); const json = await res.json(); if (json.datos && json.datos.length > 0) { actualizarKPIs(json.datos); dibujarGrafico(json.datos); } } catch (e) { console.error("Error peso", e); } }
 function actualizarKPIs(datos) { const actual = datos[datos.length - 1].peso; document.getElementById('last-weight').textContent = actual + " kg"; if (datos.length > 1) { const previo = datos[datos.length - 2].peso; const diff = actual - previo; const icon = diff < 0 ? '📉' : (diff > 0 ? '📈' : '➡️'); document.getElementById('weight-trend').textContent = icon + " " + diff.toFixed(1); document.getElementById('weight-trend').style.color = diff < 0 ? '#2ecc71' : '#e74c3c'; } }
 function dibujarGrafico(historial) { const dataArray = [['Fecha', 'Peso']]; historial.forEach(reg => dataArray.push([reg.fecha, parseFloat(reg.peso)])); const data = google.visualization.arrayToDataTable(dataArray); const options = { curveType: 'function', legend: { position: 'none' }, colors: ['#000'], lineWidth: 3, pointSize: 5, vAxis: { gridlines: { color: '#f0f0f0' } }, hAxis: { textStyle: { color: '#999', fontSize: 10 } }, chartArea: { width: '85%', height: '80%' } }; const chart = new google.visualization.LineChart(document.getElementById('chart_div')); chart.draw(data, options); }
 
 window.saveStatus = (id, state) => { localStorage.setItem(id, state); };
-
 window.showTab = (name) => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
-    const tab = document.getElementById(name + '-view');
-    tab.classList.add('active');
-    
-    // Marcar botón activo
+    document.getElementById(name + '-view').classList.add('active');
     event.currentTarget.classList.add('active');
-
-    // 🟢 GESTIÓN WAKE LOCK SEGÚN PESTAÑA
-    if (name === 'shopping') {
-        activarPantalla(); // Mantener encendida en la lista del súper
-    } else {
-        desactivarPantalla(); // Dejar que se apague en Menú/Peso para ahorrar
-    }
-
+    if (name === 'shopping') activarPantalla(); else desactivarPantalla();
     if (name === 'weight') cargarHistorialPeso();
 };
