@@ -1,4 +1,3 @@
-// ✅ TUS DATOS MAESTROS
 const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 const FECHA_INICIO = new Date("2026-01-12T00:00:00"); 
@@ -6,8 +5,7 @@ const FECHA_INICIO = new Date("2026-01-12T00:00:00");
 let planificadorData = [];
 let currentViewDate = new Date();
 let supermarketMode = false;
-let touchStartX = 0; let touchEndX = 0;
-let wakeLock = null;
+let touchStartX = 0, touchEndX = 0, wakeLock = null;
 
 google.charts.load('current', {'packages':['corechart']});
 google.charts.setOnLoadCallback(cargarHistorialPeso);
@@ -23,16 +21,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function handleSwipe() { if (touchEndX < touchStartX - 50) changeWeek(1); if (touchEndX > touchStartX + 50) changeWeek(-1); }
-function getMonday(d) { d = new Date(d); var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
+function getMonday(d) { d = new Date(d); let day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
 function formatDate(date) { return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', ''); }
 
-// CARGA DE DATOS
 async function loadData() {
     try {
         const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/MENÚ`);
         const rawData = await res.json();
-        if (!Array.isArray(rawData) || rawData.error) throw new Error("Error hoja");
-
         planificadorData = rawData.map(row => {
             const cleanRow = {};
             Object.keys(row).forEach(key => {
@@ -50,11 +45,8 @@ async function loadData() {
             });
             return cleanRow;
         });
-        renderWeek();
-        renderShopping();
-    } catch (e) { console.error(e); } finally {
-        setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 500);
-    }
+        renderWeek(); renderShopping();
+    } catch (e) { console.error(e); } finally { setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 500); }
 }
 
 function changeWeek(dir) {
@@ -64,128 +56,129 @@ function changeWeek(dir) {
 }
 
 function renderWeek() {
-    const diffTime = currentViewDate - FECHA_INICIO;
-    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
-    let semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
+    const diffWeeks = Math.floor((currentViewDate - FECHA_INICIO) / (7 * 24 * 60 * 60 * 1000));
+    const semanaNum = diffWeeks + 1;
+    
+    const hoyReal = new Date(); hoyReal.setHours(0,0,0,0);
+    const esSemanaActual = currentViewDate.getTime() === getMonday(new Date()).getTime();
+    document.getElementById('btn-back-today').style.display = esSemanaActual ? 'none' : 'block';
+
     let finSemana = new Date(currentViewDate); finSemana.setDate(finSemana.getDate() + 6);
-    
     document.getElementById('current-week-label').innerHTML = `Semana ${semanaNum}<br><span style="font-size:0.7em; font-weight:normal;">${formatDate(currentViewDate)} - ${formatDate(finSemana)}</span>`;
-    const container = document.getElementById('days-container'); container.innerHTML = '';
     
+    const container = document.getElementById('days-container'); container.innerHTML = '';
     const filasSemana = planificadorData.filter(r => r.Semana == semanaNum);
+    
+    if (filasSemana.length === 0) { container.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">No hay datos para esta semana en el Excel.</p>'; return; }
+
     const diasAgrupados = {};
     const ordenDias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    filasSemana.forEach(fila => {
-        if (!fila.Dia) return;
-        const diaLimpio = fila.Dia.trim().charAt(0).toUpperCase() + fila.Dia.trim().slice(1).toLowerCase();
-        let diaKey = diaLimpio; if(diaLimpio === "Miercoles") diaKey = "Miércoles"; if(diaLimpio === "Sabado") diaKey = "Sábado";
-        if (!diasAgrupados[diaKey]) diasAgrupados[diaKey] = {};
-        const datoPlato = { nombre: fila.Plato, receta: fila.Receta };
-        const momento = (fila.Momento || "").toLowerCase();
-        if(momento.includes("desayuno")) diasAgrupados[diaKey].Desayuno = datoPlato;
-        if(momento.includes("comida")) diasAgrupados[diaKey].Comida = datoPlato;
-        if(momento.includes("cena")) diasAgrupados[diaKey].Cena = datoPlato;
+    filasSemana.forEach(f => {
+        let d = f.Dia.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (!diasAgrupados[d]) diasAgrupados[d] = {};
+        diasAgrupados[d][f.Momento] = { nombre: f.Plato, receta: f.Receta };
     });
 
-    const hoyReal = new Date(); hoyReal.setHours(0,0,0,0);
-    ordenDias.forEach((nombreDia, index) => {
-        let fechaTarjeta = new Date(currentViewDate); fechaTarjeta.setDate(fechaTarjeta.getDate() + index);
-        let platos = diasAgrupados[nombreDia];
+    ordenDias.forEach((nombreDia, idx) => {
+        let dLimpio = nombreDia.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        let platos = diasAgrupados[dLimpio];
+        let fechaT = new Date(currentViewDate); fechaT.setDate(fechaT.getDate() + idx);
+        const esHoy = fechaT.getTime() === hoyReal.getTime();
+
         if (platos) {
-            const esHoy = fechaTarjeta.getTime() === hoyReal.getTime();
-            const claseExtra = esHoy ? 'today' : ''; const idDia = esHoy ? 'id="dia-actual"' : '';
-            container.innerHTML += `<div class="day-item ${claseExtra}" ${idDia}><div class="day-header" style="display:flex; justify-content:space-between;"><span>${nombreDia}</span><span style="color:#888; font-weight:normal;">${formatDate(fechaTarjeta)}</span></div><div class="day-body">${renderMealRow('Desayuno', platos.Desayuno)}${renderMealRow('Comida', platos.Comida)}${renderMealRow('Cena', platos.Cena)}</div></div>`;
+            let txtManana = "";
+            if (esHoy) {
+                let sManana = (idx === 6) ? semanaNum + 1 : semanaNum;
+                let dManana = ordenDias[(idx + 1) % 7];
+                let fManana = planificadorData.find(r => r.Semana == sManana && r.Dia == dManana && r.Momento == "Comida");
+                if (fManana) txtManana = `<div class="tomorrow-preview">🔔 Mañana toca: ${fManana.Plato}</div>`;
+            }
+
+            container.innerHTML += `<div class="day-item ${esHoy ? 'today' : ''}" ${esHoy ? 'id="dia-actual"' : ''}><div class="day-header" style="display:flex; justify-content:space-between;"><span>${nombreDia}</span><span style="color:#888; font-weight:normal;">${formatDate(fechaT)}</span></div><div class="day-body">${renderMealRow('Desayuno', platos.Desayuno)}${renderMealRow('Comida', platos.Comida)}${renderMealRow('Cena', platos.Cena)}${txtManana}</div></div>`;
         }
     });
-    setTimeout(() => { const diaActual = document.getElementById('dia-actual'); if (diaActual) { const y = diaActual.getBoundingClientRect().top + window.scrollY - 90; window.scrollTo({top: y, behavior: 'smooth'}); } }, 150);
+    if (esSemanaActual) setTimeout(() => { const el = document.getElementById('dia-actual'); if(el) window.scrollTo({top: el.offsetTop - 90, behavior: 'smooth'}); }, 150);
 }
 
 function renderMealRow(label, data) {
     if (!data || !data.nombre) return `<div class="meal-row"><span class="meal-label">${label}</span><div class="meal-text">---</div></div>`;
-    const recetaSafe = data.receta ? data.receta.replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
-    const nombreSafe = data.nombre.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-    const clickAttr = data.receta ? `class="meal-text meal-clickable" onclick="abrirReceta('${nombreSafe}', '${recetaSafe}')"` : `class="meal-text"`;
-    return `<div class="meal-row"><span class="meal-label">${label}</span><div ${clickAttr}>${data.nombre} ${data.receta ? ' ℹ️' : ''}</div></div>`;
+    const recSafe = data.receta ? data.receta.replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
+    const nomSafe = data.nombre.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    return `<div class="meal-row"><span class="meal-label">${label}</span><div class="meal-text ${data.receta ? 'meal-clickable' : ''}" ${data.receta ? `onclick="abrirReceta('${nomSafe}', '${recSafe}')"` : ''}>${data.nombre} ${data.receta ? 'ℹ️' : ''}</div></div>`;
 }
 
-// COMPRA POR PASILLOS
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
 function renderShopping() {
     const list = document.getElementById('shopping-list');
-    const subtitle = document.getElementById('shopping-subtitle');
+    const diffWeeks = Math.floor((currentViewDate - FECHA_INICIO) / (7 * 24 * 60 * 60 * 1000));
+    const semanaNum = diffWeeks + 1;
+    let targets = supermarketMode ? [semanaNum, semanaNum + 1] : [semanaNum];
+    document.getElementById('shopping-subtitle').textContent = `Ingredientes semana${targets.length > 1 ? 's' : ''} ${targets.join(' y ')}`;
+    
     list.innerHTML = '';
-    const diffTime = currentViewDate - FECHA_INICIO; const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)); const semanaNum = ((diffWeeks % 4) + 4) % 4 + 1;
-    let targetWeeks = [semanaNum]; if (supermarketMode) { if (semanaNum <= 2) targetWeeks = [1, 2]; else targetWeeks = [3, 4]; subtitle.textContent = `Ingredientes semanas: ${targetWeeks.join(' y ')}`; } else { subtitle.textContent = `Ingredientes semana ${semanaNum}`; }
-    const categorias = [
-        { id: 'Fruteria', icono: '🥦', titulo: 'Frutería y Verduras' },
-        { id: 'Carniceria', icono: '🥩', titulo: 'Carnicería' },
-        { id: 'Pescaderia', icono: '🐟', titulo: 'Pescadería' },
-        { id: 'Refrigerados', icono: '❄️', titulo: 'Refrigerados y Lácteos' },
-        { id: 'Despensa', icono: '🥫', titulo: 'Despensa y Varios' }
-    ];
-    const inventory = {}; categorias.forEach(cat => inventory[cat.id] = {});
-    const filasObjetivo = planificadorData.filter(r => targetWeeks.some(w => r.Semana == w));
-    filasObjetivo.forEach(fila => {
+    const categorias = [{id:'Fruteria', ico:'🥦', tit:'Frutería'}, {id:'Carniceria', ico:'🥩', tit:'Carnicería'}, {id:'Pescaderia', ico:'🐟', tit:'Pescadería'}, {id:'Refrigerados', ico:'❄️', tit:'Refrigerados'}, {id:'Despensa', ico:'🥫', tit:'Despensa'}];
+    const inventory = {}; categorias.forEach(c => inventory[c.id] = {});
+    
+    planificadorData.filter(r => targets.includes(parseInt(r.Semana))).forEach(fila => {
         categorias.forEach(cat => {
             if (fila[cat.id]) {
-                const items = fila[cat.id].toString().split(',');
-                items.forEach(rawItem => {
-                    let item = rawItem.trim(); if (!item) return;
-                    let key = item.toLowerCase(); let display = item.charAt(0).toUpperCase() + item.slice(1);
-                    if (!inventory[cat.id][key]) inventory[cat.id][key] = { name: display, count: 0, origins: [] };
-                    inventory[cat.id][key].count++;
-                    inventory[cat.id][key].origins.push(`S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Plato || '---'}`);
+                fila[cat.id].split(',').forEach(item => {
+                    let raw = item.trim(); if (!raw) return;
+                    let k = raw.toLowerCase();
+                    if (!inventory[cat.id][k]) inventory[cat.id][k] = { name: raw.charAt(0).toUpperCase() + raw.slice(1), count: 0, origins: [] };
+                    inventory[cat.id][k].count++;
+                    inventory[cat.id][k].origins.push(`S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Plato || '---'}`);
                 });
             }
         });
     });
-    let hayAlgo = false;
+
     categorias.forEach(cat => {
-        const itemsCategoria = inventory[cat.id];
-        const sortedKeys = Object.keys(itemsCategoria).sort();
-        if (sortedKeys.length > 0) {
-            hayAlgo = true;
-            list.innerHTML += `<li style="background:#f4f4f4; border:none; padding:10px 0; margin-top:20px; font-weight:bold; font-size:0.85rem; color:#000;">${cat.icono} ${cat.titulo}</li>`;
-            sortedKeys.forEach(key => {
-                const data = itemsCategoria[key];
-                const id = `shop-${supermarketMode?'super':'w'}-${targetWeeks.join('')}-${key.replace(/\s+/g, '')}`;
+        const items = Object.keys(inventory[cat.id]).sort();
+        if (items.length > 0) {
+            list.innerHTML += `<li style="background:#f4f4f4; border:none; padding:10px 0; margin-top:20px; font-weight:bold; font-size:0.85rem; color:#000;">${cat.ico} ${cat.tit}</li>`;
+            items.forEach(k => {
+                const d = inventory[cat.id][k];
+                const id = `shop-${k.replace(/\s+/g, '')}`;
                 const checked = localStorage.getItem(id) === 'true';
-                const detailsHtml = data.origins.map(o => `<span>• ${o}</span>`).join('<br>');
-                list.innerHTML += `<li style="border-bottom:1px solid #eee;"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveStatus('${id}', this.checked)"><div class="item-content"><label class="item-title" for="${id}">${data.name} <span style="font-weight:normal; color:#555;">(x${data.count})</span></label><small class="item-details">${detailsHtml}</small></div></li>`;
+                list.innerHTML += `<li style="border-bottom:1px solid #eee;"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveStatus('${id}', this.checked)"><div class="item-content"><label class="item-title" for="${id}">${d.name} (x${d.count})</label><small class="item-details">${d.origins.map(o => `• ${o}`).join('<br>')}</small></div></li>`;
             });
         }
     });
-    if (!hayAlgo) list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>';
 }
 
-// GESTIÓN WAKE LOCK (PANTALLA ACTIVA)
-async function activarPantalla() { if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} } }
-function desactivarPantalla() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); } }
+async function activarPantalla() { if ('wakeLock' in navigator) try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+function desactivarPantalla() { if (wakeLock !== null) wakeLock.release().then(() => wakeLock = null); }
 
-window.abrirReceta = (plato, receta) => {
-    document.getElementById('modal-title').textContent = plato;
-    document.getElementById('modal-body').textContent = receta || "Sin instrucciones.";
-    document.getElementById('recipe-modal').classList.add('open');
-    activarPantalla(); 
-};
-window.cerrarReceta = () => {
-    document.getElementById('recipe-modal').classList.remove('open');
-    if (document.querySelector('.tab-link.active').innerText !== 'Compra') desactivarPantalla();
-};
-
-// PESO Y TABS
-async function enviarPeso() { const input = document.getElementById('weight-input'); const btn = document.getElementById('btn-save-weight'); const msg = document.getElementById('weight-msg'); const peso = parseFloat(input.value); if (!peso || peso <= 0) { msg.textContent = "Peso incorrecto"; return; } btn.disabled = true; btn.textContent = "..."; msg.textContent = "Guardando..."; try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: peso }), headers: { "Content-Type": "text/plain" } }); msg.textContent = "¡Guardado!"; input.value = ''; setTimeout(() => { msg.textContent = ''; }, 3000); cargarHistorialPeso(); } catch (error) { msg.textContent = "Error conexión"; } finally { btn.disabled = false; btn.textContent = "Guardar"; } }
-async function cargarHistorialPeso() { try { const res = await fetch(`${SCRIPT_URL}?accion=leer`); const json = await res.json(); if (json.datos && json.datos.length > 0) { actualizarKPIs(json.datos); dibujarGrafico(json.datos); } } catch (e) { console.error("Error peso", e); } }
-function actualizarKPIs(datos) { const actual = datos[datos.length - 1].peso; document.getElementById('last-weight').textContent = actual + " kg"; if (datos.length > 1) { const previo = datos[datos.length - 2].peso; const diff = actual - previo; const icon = diff < 0 ? '📉' : (diff > 0 ? '📈' : '➡️'); document.getElementById('weight-trend').textContent = icon + " " + diff.toFixed(1); document.getElementById('weight-trend').style.color = diff < 0 ? '#2ecc71' : '#e74c3c'; } }
-function dibujarGrafico(historial) { const dataArray = [['Fecha', 'Peso']]; historial.forEach(reg => dataArray.push([reg.fecha, parseFloat(reg.peso)])); const data = google.visualization.arrayToDataTable(dataArray); const options = { curveType: 'function', legend: { position: 'none' }, colors: ['#000'], lineWidth: 3, pointSize: 5, vAxis: { gridlines: { color: '#f0f0f0' } }, hAxis: { textStyle: { color: '#999', fontSize: 10 } }, chartArea: { width: '85%', height: '80%' } }; const chart = new google.visualization.LineChart(document.getElementById('chart_div')); chart.draw(data, options); }
-
-window.saveStatus = (id, state) => { localStorage.setItem(id, state); };
-window.showTab = (name) => {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
-    document.getElementById(name + '-view').classList.add('active');
+window.abrirReceta = (p, r) => { document.getElementById('modal-title').textContent = p; document.getElementById('modal-body').textContent = r; document.getElementById('recipe-modal').classList.add('open'); activarPantalla(); };
+window.cerrarReceta = () => { document.getElementById('recipe-modal').classList.remove('open'); if (document.querySelector('.tab-link.active').innerText !== 'Compra') desactivarPantalla(); };
+window.backToToday = () => { currentViewDate = getMonday(new Date()); renderWeek(); renderShopping(); };
+window.saveStatus = (id, s) => localStorage.setItem(id, s);
+window.showTab = (n) => {
+    document.querySelectorAll('.tab-content, .tab-link').forEach(el => el.classList.remove('active'));
+    document.getElementById(n + '-view').classList.add('active');
     event.currentTarget.classList.add('active');
-    if (name === 'shopping') activarPantalla(); else desactivarPantalla();
-    if (name === 'weight') cargarHistorialPeso();
+    if (n === 'shopping') activarPantalla(); else desactivarPantalla();
+    if (n === 'weight') cargarHistorialPeso();
 };
+
+async function enviarPeso() { 
+    const i = document.getElementById('weight-input'), b = document.getElementById('btn-save-weight'), m = document.getElementById('weight-msg'), p = parseFloat(i.value);
+    if (!p || p <= 0) { m.textContent = "Peso incorrecto"; return; }
+    b.disabled = true; m.textContent = "Guardando...";
+    try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "¡Guardado!"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "Error conexión"; } finally { b.disabled = false; }
+}
+
+async function cargarHistorialPeso() {
+    try {
+        const res = await fetch(`${SCRIPT_URL}?accion=leer`);
+        const json = await res.json();
+        if (json.datos && json.datos.length > 0) {
+            const actual = json.datos[json.datos.length - 1].weight || json.datos[json.datos.length - 1].peso;
+            document.getElementById('last-weight').textContent = actual + " kg";
+            const data = google.visualization.arrayToDataTable([['Fecha', 'Peso'], ...json.datos.map(reg => [reg.fecha, parseFloat(reg.weight || reg.peso)])]);
+            new google.visualization.LineChart(document.getElementById('chart_div')).draw(data, { curveType: 'function', legend: 'none', colors: ['#000'], chartArea: { width: '85%', height: '80%' } });
+        }
+    } catch (e) {}
+}
