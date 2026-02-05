@@ -1,3 +1,4 @@
+// ✅ TUS DATOS MAESTROS
 const SHEET_ID = '1xHYqCb5gNeQBc_wUEfs7fpdtHdI9nuzEUhHVV76Hf94'; 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDnRSmvkcpP6gSn5A7BeUkBqD0puV3Dtro_FvXapt3vkGDRKfNpy61KQSiSDyBpXEWpw/exec';
 const FECHA_INICIO = new Date("2026-01-12T00:00:00"); 
@@ -109,33 +110,44 @@ function renderMealRow(label, data) {
 
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
-// --- LÓGICA INTELIGENTE DE COMPRA ---
+// --- LÓGICA DE COMPRA CORREGIDA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     const subtitle = document.getElementById('shopping-subtitle');
     const diffWeeks = Math.floor((currentViewDate - FECHA_INICIO) / (7 * 24 * 60 * 60 * 1000));
     const semanaActual = diffWeeks + 1;
     
-    // Hallamos cuál es la semana máxima escrita en el Excel
-    const maxSemanaEscrita = Math.max(...planificadorData.map(r => parseInt(r.Semana)).filter(s => !isNaN(s)));
+    // 🔥 CORRECCIÓN: Filtramos solo las semanas que tienen PLATOS rellenos.
+    // Esto evita que filas vacías en el Excel cuenten como "semanas futuras".
+    const semanasReales = planificadorData
+        .filter(r => r.Plato && r.Plato.trim().length > 1)
+        .map(r => parseInt(r.Semana))
+        .filter(s => !isNaN(s));
+    
+    // Buscamos la semana más alta REAL
+    const maxSemanaEscrita = semanasReales.length > 0 ? Math.max(...semanasReales) : 1;
 
     let targets = [semanaActual];
     if (supermarketMode) {
         if (semanaActual < maxSemanaEscrita) {
-            // Caso normal: Hay semana siguiente
+            // Hay semana siguiente disponible
             targets = [semanaActual, semanaActual + 1];
             subtitle.textContent = `Ingredientes semanas ${semanaActual} y ${semanaActual + 1}`;
+            subtitle.style.color = "#757575"; // Color normal
         } else if (semanaActual > 1) {
-            // Caso especial: Es la última semana, sugerimos combinar con la anterior
+            // NO hay semana siguiente -> Combinamos con la anterior
             targets = [semanaActual - 1, semanaActual];
-            subtitle.textContent = `No hay más semanas. Combinando ${semanaActual - 1} y ${semanaActual}`;
+            // ⚠️ Aviso visual para que sepas qué está pasando
+            subtitle.innerHTML = `⚠️ Fin del plan. Combinando semanas <b>${semanaActual - 1} y ${semanaActual}</b>`;
+            subtitle.style.color = "#e67e22"; // Color naranja de aviso
         } else {
-            // Caso borde: Solo hay una semana en todo el Excel
+            // Solo existe la semana 1
             targets = [semanaActual];
             subtitle.textContent = `Solo hay datos de la semana ${semanaActual}`;
         }
     } else {
         subtitle.textContent = `Ingredientes semana ${semanaActual}`;
+        subtitle.style.color = "#757575";
     }
     
     list.innerHTML = '';
@@ -149,7 +161,6 @@ function renderShopping() {
     
     const inventory = {}; categorias.forEach(c => inventory[c.id] = {});
     
-    // Filtrar los datos solo para las semanas objetivo
     const filasObjetivo = planificadorData.filter(r => targets.includes(parseInt(r.Semana)));
 
     filasObjetivo.forEach(fila => {
