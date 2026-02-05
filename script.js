@@ -109,24 +109,60 @@ function renderMealRow(label, data) {
 
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
+// --- LÓGICA INTELIGENTE DE COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
+    const subtitle = document.getElementById('shopping-subtitle');
     const diffWeeks = Math.floor((currentViewDate - FECHA_INICIO) / (7 * 24 * 60 * 60 * 1000));
-    const semanaNum = diffWeeks + 1;
-    let targets = supermarketMode ? [semanaNum, semanaNum + 1] : [semanaNum];
-    document.getElementById('shopping-subtitle').textContent = `Ingredientes semana${targets.length > 1 ? 's' : ''} ${targets.join(' y ')}`;
+    const semanaActual = diffWeeks + 1;
+    
+    // Hallamos cuál es la semana máxima escrita en el Excel
+    const maxSemanaEscrita = Math.max(...planificadorData.map(r => parseInt(r.Semana)).filter(s => !isNaN(s)));
+
+    let targets = [semanaActual];
+    if (supermarketMode) {
+        if (semanaActual < maxSemanaEscrita) {
+            // Caso normal: Hay semana siguiente
+            targets = [semanaActual, semanaActual + 1];
+            subtitle.textContent = `Ingredientes semanas ${semanaActual} y ${semanaActual + 1}`;
+        } else if (semanaActual > 1) {
+            // Caso especial: Es la última semana, sugerimos combinar con la anterior
+            targets = [semanaActual - 1, semanaActual];
+            subtitle.textContent = `No hay más semanas. Combinando ${semanaActual - 1} y ${semanaActual}`;
+        } else {
+            // Caso borde: Solo hay una semana en todo el Excel
+            targets = [semanaActual];
+            subtitle.textContent = `Solo hay datos de la semana ${semanaActual}`;
+        }
+    } else {
+        subtitle.textContent = `Ingredientes semana ${semanaActual}`;
+    }
     
     list.innerHTML = '';
-    const categorias = [{id:'Fruteria', ico:'🥦', tit:'Frutería'}, {id:'Carniceria', ico:'🥩', tit:'Carnicería'}, {id:'Pescaderia', ico:'🐟', tit:'Pescadería'}, {id:'Refrigerados', ico:'❄️', tit:'Refrigerados'}, {id:'Despensa', ico:'🥫', tit:'Despensa'}];
+    const categorias = [
+        {id:'Fruteria', ico:'🥦', tit:'Frutería'}, 
+        {id:'Carniceria', ico:'🥩', tit:'Carnicería'}, 
+        {id:'Pescaderia', ico:'🐟', tit:'Pescadería'}, 
+        {id:'Refrigerados', ico:'❄️', tit:'Refrigerados'}, 
+        {id:'Despensa', ico:'🥫', tit:'Despensa'}
+    ];
+    
     const inventory = {}; categorias.forEach(c => inventory[c.id] = {});
     
-    planificadorData.filter(r => targets.includes(parseInt(r.Semana))).forEach(fila => {
+    // Filtrar los datos solo para las semanas objetivo
+    const filasObjetivo = planificadorData.filter(r => targets.includes(parseInt(r.Semana)));
+
+    filasObjetivo.forEach(fila => {
         categorias.forEach(cat => {
             if (fila[cat.id]) {
                 fila[cat.id].split(',').forEach(item => {
                     let raw = item.trim(); if (!raw) return;
                     let k = raw.toLowerCase();
-                    if (!inventory[cat.id][k]) inventory[cat.id][k] = { name: raw.charAt(0).toUpperCase() + raw.slice(1), count: 0, origins: [] };
+                    if (!inventory[cat.id][k]) inventory[cat.id][k] = { 
+                        name: raw.charAt(0).toUpperCase() + raw.slice(1), 
+                        count: 0, 
+                        origins: [] 
+                    };
                     inventory[cat.id][k].count++;
                     inventory[cat.id][k].origins.push(`S${fila.Semana} ${fila.Dia.substring(0,3)}: ${fila.Plato || '---'}`);
                 });
@@ -134,18 +170,29 @@ function renderShopping() {
         });
     });
 
+    let hayAlgo = false;
     categorias.forEach(cat => {
         const items = Object.keys(inventory[cat.id]).sort();
         if (items.length > 0) {
+            hayAlgo = true;
             list.innerHTML += `<li style="background:#f4f4f4; border:none; padding:10px 0; margin-top:20px; font-weight:bold; font-size:0.85rem; color:#000;">${cat.ico} ${cat.tit}</li>`;
             items.forEach(k => {
                 const d = inventory[cat.id][k];
                 const id = `shop-${k.replace(/\s+/g, '')}`;
                 const checked = localStorage.getItem(id) === 'true';
-                list.innerHTML += `<li style="border-bottom:1px solid #eee;"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveStatus('${id}', this.checked)"><div class="item-content"><label class="item-title" for="${id}">${d.name} (x${d.count})</label><small class="item-details">${d.origins.map(o => `• ${o}`).join('<br>')}</small></div></li>`;
+                list.innerHTML += `
+                    <li style="border-bottom:1px solid #eee;">
+                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} onchange="saveStatus('${id}', this.checked)">
+                        <div class="item-content">
+                            <label class="item-title" for="${id}">${d.name} (x${d.count})</label>
+                            <small class="item-details">${d.origins.map(o => `• ${o}`).join('<br>')}</small>
+                        </div>
+                    </li>`;
             });
         }
     });
+
+    if (!hayAlgo) list.innerHTML = '<li style="color:#aaa; padding:15px;">No hay ingredientes.</li>';
 }
 
 async function activarPantalla() { if ('wakeLock' in navigator) try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
