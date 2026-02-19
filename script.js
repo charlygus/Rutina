@@ -8,12 +8,9 @@ let currentViewDate = new Date();
 let supermarketMode = false;
 let touchStartX = 0, touchEndX = 0, wakeLock = null;
 
-// --- GOOGLE CHARTS ELIMINADO ---
-// En su lugar, cargamos el historial directamente al iniciar
 document.addEventListener('DOMContentLoaded', async () => {
     currentViewDate = getMonday(new Date());
     await loadData();
-    // Cargar peso en segundo plano si la pestaña activa es peso, si no, esperar
     if(document.getElementById('weight-view').classList.contains('active')) {
         cargarHistorialPeso();
     }
@@ -114,7 +111,6 @@ function renderMealRow(label, data) {
 
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
-// --- LÓGICA DE COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     const subtitle = document.getElementById('shopping-subtitle');
@@ -215,7 +211,6 @@ window.showTab = (n) => {
     document.getElementById(n + '-view').classList.add('active');
     event.currentTarget.classList.add('active');
     if (n === 'shopping') activarPantalla(); else desactivarPantalla();
-    // Si mostramos peso, aseguramos que los datos estén frescos
     if (n === 'weight') cargarHistorialPeso();
 };
 
@@ -226,27 +221,22 @@ async function enviarPeso() {
     try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "DATOS GUARDADOS"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "ERROR CONEXIÓN"; } finally { b.disabled = false; }
 }
 
-// --- NUEVA FUNCIÓN DE CARGA DE PESO (SIN GOOGLE CHARTS) ---
 async function cargarHistorialPeso() {
     const chartContainer = document.getElementById('chart_div');
-    // Indicador de carga sutil
-    chartContainer.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem; padding-top:100px;">Cargando datos...</div>';
+    chartContainer.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem; padding-top:100px; width:100%;">Cargando datos...</div>';
 
     try {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
         const json = await res.json();
         
         if (json.datos && json.datos.length > 0) {
-            // Usamos solo los últimos 7 datos para que las barras se vean bien en móvil
             const ultimosDatos = json.datos.slice(-7);
             const len = ultimosDatos.length;
             const actualEl = ultimosDatos[len - 1];
             const actualVal = parseFloat(actualEl.weight || actualEl.peso);
             
-            // Actualizar KPI principal
             document.getElementById('last-weight').textContent = actualVal.toFixed(1) + " kg";
             
-            // --- CÁLCULO DE TENDENCIA ---
             const trendEl = document.getElementById('weight-trend');
             if (len >= 2) {
                 const anteriorEl = ultimosDatos[len - 2];
@@ -267,31 +257,33 @@ async function cargarHistorialPeso() {
                 trendEl.style.color = "#000000";
             }
 
-            // --- GENERACIÓN DE BARRAS CSS ---
-            // 1. Encontrar min y max de los datos mostrados para la escala
             const pesos = ultimosDatos.map(d => parseFloat(d.weight || d.peso));
             let minWeight = Math.min(...pesos);
             let maxWeight = Math.max(...pesos);
             
-            // Dar un pequeño margen (buffer) para que la barra más pequeña no sea 0% altura
             let buffer = (maxWeight - minWeight) * 0.1; 
-            if(buffer === 0) buffer = 1; // Si todos pesan igual
+            if(buffer === 0) buffer = 1; 
             const scaleMin = minWeight - buffer;
-            const scaleMax = maxWeight + (buffer * 0.5); // Un poco de aire arriba
+            const scaleMax = maxWeight + (buffer * 0.5); 
 
             let htmlBarras = '';
             ultimosDatos.forEach(reg => {
                 const peso = parseFloat(reg.weight || reg.peso);
-                // Cálculo de porcentaje de altura relativo a la escala
                 let heightPercent = ((peso - scaleMin) / (scaleMax - scaleMin)) * 100;
-                // Asegurar un mínimo visual
                 heightPercent = Math.max(heightPercent, 15); 
 
-                // Formatear fecha a DD/MM
+                // FIX: Lógica robusta para parsear fechas ISO y otros formatos
                 let fStr = reg.fecha;
-                if(typeof fStr === 'string') {
-                    let parts = fStr.split('/');
-                    if(parts.length >= 2) fStr = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
+                try {
+                    let d = new Date(fStr);
+                    if (!isNaN(d.getTime())) {
+                        fStr = d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0');
+                    } else if (typeof fStr === 'string') {
+                        let parts = fStr.split('/');
+                        if(parts.length >= 2) fStr = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
+                    }
+                } catch(e) {
+                    fStr = String(fStr).substring(0,5);
                 }
 
                 htmlBarras += `
@@ -302,14 +294,12 @@ async function cargarHistorialPeso() {
                 `;
             });
 
-            // Inyectar el HTML generado
             chartContainer.innerHTML = htmlBarras;
 
         } else {
-            chartContainer.innerHTML = '<div style="text-align:center; color:#999; padding-top:100px;">Sin datos aún</div>';
+            chartContainer.innerHTML = '<div style="text-align:center; color:#999; padding-top:100px; width:100%;">Sin datos aún</div>';
         }
     } catch (e) {
-        console.error(e);
-        chartContainer.innerHTML = '<div style="text-align:center; color:red; padding-top:100px;">Error de carga</div>';
+        chartContainer.innerHTML = '<div style="text-align:center; color:red; padding-top:100px; width:100%;">Error de carga</div>';
     }
 }
