@@ -110,38 +110,31 @@ function renderMealRow(label, data) {
 
 function toggleSuperMode() { supermarketMode = document.getElementById('super-mode-toggle').checked; renderShopping(); }
 
-// --- LÓGICA DE COMPRA CORREGIDA ---
+// --- LÓGICA DE COMPRA ---
 function renderShopping() {
     const list = document.getElementById('shopping-list');
     const subtitle = document.getElementById('shopping-subtitle');
     const diffWeeks = Math.floor((currentViewDate - FECHA_INICIO) / (7 * 24 * 60 * 60 * 1000));
     const semanaActual = diffWeeks + 1;
     
-    // 🔥 CORRECCIÓN: Filtramos solo las semanas que tienen PLATOS rellenos.
-    // Esto evita que filas vacías en el Excel cuenten como "semanas futuras".
     const semanasReales = planificadorData
         .filter(r => r.Plato && r.Plato.trim().length > 1)
         .map(r => parseInt(r.Semana))
         .filter(s => !isNaN(s));
     
-    // Buscamos la semana más alta REAL
     const maxSemanaEscrita = semanasReales.length > 0 ? Math.max(...semanasReales) : 1;
 
     let targets = [semanaActual];
     if (supermarketMode) {
         if (semanaActual < maxSemanaEscrita) {
-            // Hay semana siguiente disponible
             targets = [semanaActual, semanaActual + 1];
             subtitle.textContent = `Ingredientes semanas ${semanaActual} y ${semanaActual + 1}`;
-            subtitle.style.color = "#757575"; // Color normal
+            subtitle.style.color = "#757575";
         } else if (semanaActual > 1) {
-            // NO hay semana siguiente -> Combinamos con la anterior
             targets = [semanaActual - 1, semanaActual];
-            // ⚠️ Aviso visual para que sepas qué está pasando
             subtitle.innerHTML = `⚠️ Fin del plan. Combinando semanas <b>${semanaActual - 1} y ${semanaActual}</b>`;
-            subtitle.style.color = "#e67e22"; // Color naranja de aviso
+            subtitle.style.color = "#e67e22";
         } else {
-            // Solo existe la semana 1
             targets = [semanaActual];
             subtitle.textContent = `Solo hay datos de la semana ${semanaActual}`;
         }
@@ -237,53 +230,60 @@ async function cargarHistorialPeso() {
             const actual = parseFloat(json.datos[len - 1].weight || json.datos[len - 1].peso);
             document.getElementById('last-weight').textContent = actual.toFixed(1) + " kg";
             
-            // --- CÁLCULO DE TENDENCIA ---
+            // --- CÁLCULO DE TENDENCIA (MONOCROMO) ---
             const trendEl = document.getElementById('weight-trend');
             if (len >= 2) {
                 const anterior = parseFloat(json.datos[len - 2].weight || json.datos[len - 2].peso);
                 const diff = actual - anterior;
                 if (diff > 0) {
                     trendEl.textContent = "↑ +" + diff.toFixed(1);
-                    trendEl.style.color = "#ff3b30"; // Subida (Rojo)
+                    trendEl.style.color = "#757575"; // Subida (Gris, sobrio)
                 } else if (diff < 0) {
                     trendEl.textContent = "↓ " + diff.toFixed(1);
-                    trendEl.style.color = "#00ff41"; // Bajada (Verde Matrix)
+                    trendEl.style.color = "#000000"; // Bajada (Negro intenso, objetivo cumplido)
                 } else {
                     trendEl.textContent = "= 0.0";
-                    trendEl.style.color = "#888888"; // Igual (Gris)
+                    trendEl.style.color = "#757575"; // Igual (Gris)
                 }
             } else {
                 trendEl.textContent = "---";
-                trendEl.style.color = "#00ff41";
+                trendEl.style.color = "#000000";
             }
 
-            // --- GRÁFICA DIGITAL MEJORADA ---
+            // --- GRÁFICA DIGITAL MONOCROMÁTICA & FORMATO FECHA DD/MM ---
             const data = google.visualization.arrayToDataTable([['Fecha', 'Peso'], ...json.datos.map(reg => {
-                // Formateamos un poco la fecha si es muy larga
                 let fStr = reg.fecha;
-                if(typeof fStr === 'string' && fStr.includes('/')) {
+                // Convertir cualquier formato fecha a estricto DD/MM
+                if(typeof fStr === 'string') {
                     let parts = fStr.split('/');
-                    if(parts.length >= 2) fStr = `${parts[0]}/${parts[1]}`;
+                    if(parts.length >= 2) {
+                        fStr = `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+                    } else {
+                        parts = fStr.split('-');
+                        if(parts.length >= 3) {
+                            fStr = `${parts[2].substring(0,2).padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+                        }
+                    }
                 }
                 return [fStr, parseFloat(reg.weight || reg.peso)];
             })]);
             
             new google.visualization.LineChart(document.getElementById('chart_div')).draw(data, { 
                 legend: 'none', 
-                colors: ['#00ff41'], // Color neón
+                colors: ['#000000'], // Negro puro
                 backgroundColor: 'transparent',
                 pointSize: 5,        // Puntos visibles
-                lineWidth: 2,        // Línea recta en vez de curva
-                chartArea: { width: '85%', height: '65%', top: 15 }, // Más espacio abajo para textos
+                lineWidth: 2,        // Línea recta
+                chartArea: { width: '85%', height: '65%', top: 15 },
                 hAxis: { 
-                    textStyle: { color: '#888', fontName: 'Roboto Mono', fontSize: 10 },
+                    textStyle: { color: '#757575', fontName: 'Roboto Mono', fontSize: 10 },
                     slantedText: true, 
                     slantedTextAngle: 45, // Texto inclinado para que quepan bien
                     gridlines: { color: 'transparent' }
                 },
                 vAxis: { 
-                    textStyle: { color: '#888', fontName: 'Roboto Mono', fontSize: 11 },
-                    gridlines: { color: '#222' },
+                    textStyle: { color: '#757575', fontName: 'Roboto Mono', fontSize: 11 },
+                    gridlines: { color: '#e0e0e0' }, // Líneas de guía en gris claro
                     minorGridlines: { color: 'transparent' }
                 },
                 tooltip: { textStyle: { fontName: 'Roboto Mono' } }
