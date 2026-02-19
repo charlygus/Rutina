@@ -223,9 +223,9 @@ window.showTab = (n) => {
 
 async function enviarPeso() { 
     const i = document.getElementById('weight-input'), b = document.getElementById('btn-save-weight'), m = document.getElementById('weight-msg'), p = parseFloat(i.value);
-    if (!p || p <= 0) { m.textContent = "Peso incorrecto"; return; }
-    b.disabled = true; m.textContent = "Guardando...";
-    try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "¡Guardado!"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "Error conexión"; } finally { b.disabled = false; }
+    if (!p || p <= 0) { m.textContent = "VALOR INVÁLIDO"; return; }
+    b.disabled = true; m.textContent = "PROCESANDO...";
+    try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "DATOS GUARDADOS"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "ERROR CONEXIÓN"; } finally { b.disabled = false; }
 }
 
 async function cargarHistorialPeso() {
@@ -233,10 +233,61 @@ async function cargarHistorialPeso() {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
         const json = await res.json();
         if (json.datos && json.datos.length > 0) {
-            const actual = json.datos[json.datos.length - 1].weight || json.datos[json.datos.length - 1].peso;
-            document.getElementById('last-weight').textContent = actual + " kg";
-            const data = google.visualization.arrayToDataTable([['Fecha', 'Peso'], ...json.datos.map(reg => [reg.fecha, parseFloat(reg.weight || reg.peso)])]);
-            new google.visualization.LineChart(document.getElementById('chart_div')).draw(data, { curveType: 'function', legend: 'none', colors: ['#000'], chartArea: { width: '85%', height: '80%' } });
+            const len = json.datos.length;
+            const actual = parseFloat(json.datos[len - 1].weight || json.datos[len - 1].peso);
+            document.getElementById('last-weight').textContent = actual.toFixed(1) + " kg";
+            
+            // --- CÁLCULO DE TENDENCIA ---
+            const trendEl = document.getElementById('weight-trend');
+            if (len >= 2) {
+                const anterior = parseFloat(json.datos[len - 2].weight || json.datos[len - 2].peso);
+                const diff = actual - anterior;
+                if (diff > 0) {
+                    trendEl.textContent = "↑ +" + diff.toFixed(1);
+                    trendEl.style.color = "#ff3b30"; // Subida (Rojo)
+                } else if (diff < 0) {
+                    trendEl.textContent = "↓ " + diff.toFixed(1);
+                    trendEl.style.color = "#00ff41"; // Bajada (Verde Matrix)
+                } else {
+                    trendEl.textContent = "= 0.0";
+                    trendEl.style.color = "#888888"; // Igual (Gris)
+                }
+            } else {
+                trendEl.textContent = "---";
+                trendEl.style.color = "#00ff41";
+            }
+
+            // --- GRÁFICA DIGITAL MEJORADA ---
+            const data = google.visualization.arrayToDataTable([['Fecha', 'Peso'], ...json.datos.map(reg => {
+                // Formateamos un poco la fecha si es muy larga
+                let fStr = reg.fecha;
+                if(typeof fStr === 'string' && fStr.includes('/')) {
+                    let parts = fStr.split('/');
+                    if(parts.length >= 2) fStr = `${parts[0]}/${parts[1]}`;
+                }
+                return [fStr, parseFloat(reg.weight || reg.peso)];
+            })]);
+            
+            new google.visualization.LineChart(document.getElementById('chart_div')).draw(data, { 
+                legend: 'none', 
+                colors: ['#00ff41'], // Color neón
+                backgroundColor: 'transparent',
+                pointSize: 5,        // Puntos visibles
+                lineWidth: 2,        // Línea recta en vez de curva
+                chartArea: { width: '85%', height: '65%', top: 15 }, // Más espacio abajo para textos
+                hAxis: { 
+                    textStyle: { color: '#888', fontName: 'Roboto Mono', fontSize: 10 },
+                    slantedText: true, 
+                    slantedTextAngle: 45, // Texto inclinado para que quepan bien
+                    gridlines: { color: 'transparent' }
+                },
+                vAxis: { 
+                    textStyle: { color: '#888', fontName: 'Roboto Mono', fontSize: 11 },
+                    gridlines: { color: '#222' },
+                    minorGridlines: { color: 'transparent' }
+                },
+                tooltip: { textStyle: { fontName: 'Roboto Mono' } }
+            });
         }
     } catch (e) {}
 }
