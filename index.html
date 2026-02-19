@@ -15,7 +15,7 @@
     
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -60,24 +60,26 @@
         </div>
 
         <div id="weight-view" class="tab-content">
-            <div class="weight-summary">
-                <div class="kpi-box">
-                    <span class="kpi-label">Último Peso</span>
-                    <span class="kpi-value" id="last-weight">-- kg</span>
+            <div class="weight-summary digital-summary">
+                <div class="kpi-box digital-kpi">
+                    <span class="kpi-label">ÚLTIMO REGISTRO</span>
+                    <span class="kpi-value digital-value" id="last-weight">-- kg</span>
                 </div>
-                <div class="kpi-box">
-                    <span class="kpi-label">Tendencia</span>
-                    <span class="kpi-value" id="weight-trend">--</span>
+                <div class="kpi-box digital-kpi">
+                    <span class="kpi-label">TENDENCIA</span>
+                    <span class="kpi-value digital-value" id="weight-trend">--</span>
                 </div>
             </div>
-            <div id="chart_div" class="chart-container"></div>
-            <div class="weight-input-section">
-                <h3>Registrar Progreso</h3>
-                <div class="input-group">
-                    <input type="number" id="weight-input" placeholder="Ej: 75.5" step="0.1">
-                    <button onclick="enviarPeso()" id="btn-save-weight">Guardar</button>
+            
+            <div id="chart_div" class="chart-container digital-chart"></div>
+            
+            <div class="weight-input-section digital-input-section">
+                <h3>ENTRADA DE DATOS</h3>
+                <div class="input-group digital-group">
+                    <input type="number" id="weight-input" placeholder="00.0" step="0.1" inputmode="decimal">
+                    <button onclick="enviarPeso()" id="btn-save-weight" class="digital-btn">PROCESAR</button>
                 </div>
-                <p id="weight-msg" class="status-msg"></p>
+                <p id="weight-msg" class="status-msg digital-msg"></p>
             </div>
         </div>
     </main>
