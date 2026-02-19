@@ -8,12 +8,16 @@ let currentViewDate = new Date();
 let supermarketMode = false;
 let touchStartX = 0, touchEndX = 0, wakeLock = null;
 
-google.charts.load('current', {'packages':['corechart']});
-google.charts.setOnLoadCallback(cargarHistorialPeso);
-
+// --- GOOGLE CHARTS ELIMINADO ---
+// En su lugar, cargamos el historial directamente al iniciar
 document.addEventListener('DOMContentLoaded', async () => {
     currentViewDate = getMonday(new Date());
     await loadData();
+    // Cargar peso en segundo plano si la pestaña activa es peso, si no, esperar
+    if(document.getElementById('weight-view').classList.contains('active')) {
+        cargarHistorialPeso();
+    }
+    
     document.getElementById('prev-week').addEventListener('click', () => changeWeek(-1));
     document.getElementById('next-week').addEventListener('click', () => changeWeek(1));
     const menuContainer = document.getElementById('menu-view');
@@ -211,6 +215,7 @@ window.showTab = (n) => {
     document.getElementById(n + '-view').classList.add('active');
     event.currentTarget.classList.add('active');
     if (n === 'shopping') activarPantalla(); else desactivarPantalla();
+    // Si mostramos peso, aseguramos que los datos estén frescos
     if (n === 'weight') cargarHistorialPeso();
 };
 
@@ -221,73 +226,90 @@ async function enviarPeso() {
     try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "DATOS GUARDADOS"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "ERROR CONEXIÓN"; } finally { b.disabled = false; }
 }
 
+// --- NUEVA FUNCIÓN DE CARGA DE PESO (SIN GOOGLE CHARTS) ---
 async function cargarHistorialPeso() {
+    const chartContainer = document.getElementById('chart_div');
+    // Indicador de carga sutil
+    chartContainer.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem; padding-top:100px;">Cargando datos...</div>';
+
     try {
         const res = await fetch(`${SCRIPT_URL}?accion=leer`);
         const json = await res.json();
+        
         if (json.datos && json.datos.length > 0) {
-            const len = json.datos.length;
-            const actual = parseFloat(json.datos[len - 1].weight || json.datos[len - 1].peso);
-            document.getElementById('last-weight').textContent = actual.toFixed(1) + " kg";
+            // Usamos solo los últimos 7 datos para que las barras se vean bien en móvil
+            const ultimosDatos = json.datos.slice(-7);
+            const len = ultimosDatos.length;
+            const actualEl = ultimosDatos[len - 1];
+            const actualVal = parseFloat(actualEl.weight || actualEl.peso);
             
-            // --- CÁLCULO DE TENDENCIA (MONOCROMO) ---
+            // Actualizar KPI principal
+            document.getElementById('last-weight').textContent = actualVal.toFixed(1) + " kg";
+            
+            // --- CÁLCULO DE TENDENCIA ---
             const trendEl = document.getElementById('weight-trend');
             if (len >= 2) {
-                const anterior = parseFloat(json.datos[len - 2].weight || json.datos[len - 2].peso);
-                const diff = actual - anterior;
+                const anteriorEl = ultimosDatos[len - 2];
+                const anteriorVal = parseFloat(anteriorEl.weight || anteriorEl.peso);
+                const diff = actualVal - anteriorVal;
                 if (diff > 0) {
-                    trendEl.textContent = "↑ +" + diff.toFixed(1);
-                    trendEl.style.color = "#757575"; // Subida (Gris, sobrio)
+                    trendEl.innerHTML = "↑ +" + diff.toFixed(1);
+                    trendEl.style.color = "#757575"; 
                 } else if (diff < 0) {
-                    trendEl.textContent = "↓ " + diff.toFixed(1);
-                    trendEl.style.color = "#000000"; // Bajada (Negro intenso, objetivo cumplido)
+                    trendEl.innerHTML = "↓ " + diff.toFixed(1);
+                    trendEl.style.color = "#000000"; 
                 } else {
-                    trendEl.textContent = "= 0.0";
-                    trendEl.style.color = "#757575"; // Igual (Gris)
+                    trendEl.innerHTML = "= 0.0";
+                    trendEl.style.color = "#757575";
                 }
             } else {
                 trendEl.textContent = "---";
                 trendEl.style.color = "#000000";
             }
 
-            // --- GRÁFICA DIGITAL MONOCROMÁTICA & FORMATO FECHA DD/MM ---
-            const data = google.visualization.arrayToDataTable([['Fecha', 'Peso'], ...json.datos.map(reg => {
+            // --- GENERACIÓN DE BARRAS CSS ---
+            // 1. Encontrar min y max de los datos mostrados para la escala
+            const pesos = ultimosDatos.map(d => parseFloat(d.weight || d.peso));
+            let minWeight = Math.min(...pesos);
+            let maxWeight = Math.max(...pesos);
+            
+            // Dar un pequeño margen (buffer) para que la barra más pequeña no sea 0% altura
+            let buffer = (maxWeight - minWeight) * 0.1; 
+            if(buffer === 0) buffer = 1; // Si todos pesan igual
+            const scaleMin = minWeight - buffer;
+            const scaleMax = maxWeight + (buffer * 0.5); // Un poco de aire arriba
+
+            let htmlBarras = '';
+            ultimosDatos.forEach(reg => {
+                const peso = parseFloat(reg.weight || reg.peso);
+                // Cálculo de porcentaje de altura relativo a la escala
+                let heightPercent = ((peso - scaleMin) / (scaleMax - scaleMin)) * 100;
+                // Asegurar un mínimo visual
+                heightPercent = Math.max(heightPercent, 15); 
+
+                // Formatear fecha a DD/MM
                 let fStr = reg.fecha;
-                // Convertir cualquier formato fecha a estricto DD/MM
                 if(typeof fStr === 'string') {
                     let parts = fStr.split('/');
-                    if(parts.length >= 2) {
-                        fStr = `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
-                    } else {
-                        parts = fStr.split('-');
-                        if(parts.length >= 3) {
-                            fStr = `${parts[2].substring(0,2).padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
-                        }
-                    }
+                    if(parts.length >= 2) fStr = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
                 }
-                return [fStr, parseFloat(reg.weight || reg.peso)];
-            })]);
-            
-            new google.visualization.LineChart(document.getElementById('chart_div')).draw(data, { 
-                legend: 'none', 
-                colors: ['#000000'], // Negro puro
-                backgroundColor: 'transparent',
-                pointSize: 5,        // Puntos visibles
-                lineWidth: 2,        // Línea recta
-                chartArea: { width: '85%', height: '65%', top: 15 },
-                hAxis: { 
-                    textStyle: { color: '#757575', fontName: 'Roboto Mono', fontSize: 10 },
-                    slantedText: true, 
-                    slantedTextAngle: 45, // Texto inclinado para que quepan bien
-                    gridlines: { color: 'transparent' }
-                },
-                vAxis: { 
-                    textStyle: { color: '#757575', fontName: 'Roboto Mono', fontSize: 11 },
-                    gridlines: { color: '#e0e0e0' }, // Líneas de guía en gris claro
-                    minorGridlines: { color: 'transparent' }
-                },
-                tooltip: { textStyle: { fontName: 'Roboto Mono' } }
+
+                htmlBarras += `
+                    <div class="bar-wrapper" data-value="${peso.toFixed(1)}">
+                        <div class="bar-pill" style="height: ${heightPercent}%;"></div>
+                        <span class="bar-label">${fStr}</span>
+                    </div>
+                `;
             });
+
+            // Inyectar el HTML generado
+            chartContainer.innerHTML = htmlBarras;
+
+        } else {
+            chartContainer.innerHTML = '<div style="text-align:center; color:#999; padding-top:100px;">Sin datos aún</div>';
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error(e);
+        chartContainer.innerHTML = '<div style="text-align:center; color:red; padding-top:100px;">Error de carga</div>';
+    }
 }
