@@ -65,7 +65,6 @@ input:checked + .slider:before { transform: translateX(22px); }
 .checklist-minimal input { width: 20px; height: 20px; margin-right: 15px; accent-color: #000; margin-top: 2px; }
 .item-content { flex: 1; min-width: 0; }
 .item-title { font-size: 0.95rem; display: block; font-weight: 500; }
-/* Recorte de texto inteligente para iPhone */
 .item-details { display: block; font-size: 0.75rem; color: var(--text-light); margin-top: 4px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80vw; }
 @media (min-width: 768px) { .item-details { white-space: normal; max-width: 100%; } }
 
@@ -82,7 +81,6 @@ input:checked + .slider:before { transform: translateX(22px); }
 .modal-body { font-size: 0.95rem; line-height: 1.6; color: #444; max-height: 60vh; overflow-y: auto; }
 .modal-ok-btn { width: 100%; background: #000; color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 600; margin-top: 20px; cursor: pointer; }
 
-/* EXTRAS: Botón volver y Aviso mañana */
 #btn-back-today { position: fixed; bottom: 20px; right: 20px; background: #000; color: #fff; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; z-index: 99; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; }
 .tomorrow-preview { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-light); font-style: italic; }
 
@@ -91,21 +89,20 @@ input:checked + .slider:before { transform: translateX(22px); }
 .kpi-box { flex: 1; text-align: center; }
 .kpi-label { display: block; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 5px; }
 .kpi-value { font-size: 1.5rem; font-weight: 600; }
-.chart-container { width: 100%; height: 260px; margin-bottom: 25px; }
 .weight-input-section { padding-top: 20px; }
 .input-group { display: flex; gap: 10px; margin-top: 10px; }
 .input-group input { flex: 1; padding: 12px; font-size: 1rem; }
 .input-group button { padding: 0 25px; cursor: pointer; }
 .status-msg { margin-top: 10px; font-size: 0.85rem; height: 20px; }
 
-/* --- PESO ESTILO DIGITAL (MONOCROMO CLARO) --- */
+/* --- ESTILO DIGITAL (MONOCROMO CLARO) --- */
 .chart-mode-digital { padding: 10px 0; }
 
 .digital-kpi { background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
 .digital-kpi .kpi-label { color: var(--text-light); font-family: 'Roboto Mono', monospace; letter-spacing: 1px; }
 .digital-value { font-family: 'Roboto Mono', monospace; color: var(--text); font-weight: bold; }
 
-.digital-input-section { background: transparent; border-top: 1px dashed var(--border); }
+.digital-input-section { background: transparent; border-top: 1px dashed var(--border); margin-top: 20px; }
 .digital-input-section h3 { font-family: 'Roboto Mono', monospace; font-size: 0.9rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; }
 
 .digital-group input { background: #fafafa; border: 2px solid var(--border); color: var(--text); font-family: 'Roboto Mono', monospace; font-weight: bold; border-radius: 6px; text-align: center; }
@@ -116,18 +113,20 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 .digital-msg { font-family: 'Roboto Mono', monospace; color: var(--text); font-weight: bold; }
 
-/* --- NUEVO GRÁFICO DE BARRAS CSS NATIVO --- */
-/* Reemplaza al contenedor de Google Charts */
-.digital-chart {
+/* --- FIX: GRÁFICO DE BARRAS CSS NATIVO --- */
+#chart_div {
+    /* Blindamos el contenedor para evitar desbordes */
+    display: flex;
+    align-items: flex-end; /* Barras ancladas abajo */
+    justify-content: space-evenly; /* Espaciado uniforme */
+    gap: 8px;
+    height: 220px; /* Altura controlada */
+    padding: 25px 0 5px 0; 
+    box-sizing: border-box;
+    overflow: hidden; /* Evita que las barras rompan la web */
     background: transparent;
     border: none;
-    padding: 25px 0 5px 0; /* Espacio arriba para la etiqueta del valor */
-    box-sizing: border-box;
-    display: flex;
-    align-items: flex-end; /* Barras pegadas al suelo */
-    justify-content: space-between; /* Distribuidas a lo ancho */
-    gap: 8px;
-    height: 220px; /* Altura fija para el área de barras */
+    margin-bottom: 25px;
 }
 
 .bar-wrapper {
@@ -142,23 +141,20 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 .bar-pill {
     width: 100%;
-    max-width: 20px; /* Ancho máximo de la píldora */
-    background-color: #e0e0e0; /* Color gris para barras inactivas */
-    border-radius: 20px; /* Forma de píldora */
-    min-height: 15px; /* Siempre visible */
+    max-width: 25px; 
+    background-color: #e0e0e0; 
+    border-radius: 20px; 
+    min-height: 15px; 
     
-    /* Animación de entrada */
     transform-origin: bottom;
-    animation: growUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; /* Efecto rebote sutil */
-    opacity: 0; /* Empieza invisible */
+    animation: growUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0; 
 }
 
-/* La última barra (actual) es negra */
 .bar-wrapper:last-child .bar-pill {
     background-color: #000000;
 }
 
-/* Etiqueta de fecha debajo */
 .bar-label {
     margin-top: 10px;
     font-size: 0.65rem;
@@ -167,11 +163,10 @@ input:checked + .slider:before { transform: translateX(22px); }
     text-align: center;
 }
 
-/* Etiqueta de valor exacto SOLO sobre la última barra */
 .bar-wrapper:last-child::before {
     content: attr(data-value) " kg";
     position: absolute;
-    top: -25px; /* Flotando encima */
+    top: -25px; 
     font-size: 0.75rem;
     font-weight: bold;
     color: var(--text);
