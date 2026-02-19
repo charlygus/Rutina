@@ -113,17 +113,16 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 .digital-msg { font-family: 'Roboto Mono', monospace; color: var(--text); font-weight: bold; }
 
-/* --- FIX: GRÁFICO DE BARRAS CSS NATIVO --- */
+/* --- GRÁFICO DE BARRAS CSS NATIVO INTERACTIVO --- */
 #chart_div {
-    /* Blindamos el contenedor para evitar desbordes */
     display: flex;
-    align-items: flex-end; /* Barras ancladas abajo */
-    justify-content: space-evenly; /* Espaciado uniforme */
+    align-items: flex-end; 
+    justify-content: space-evenly; 
     gap: 8px;
-    height: 220px; /* Altura controlada */
+    height: 220px; 
     padding: 25px 0 5px 0; 
     box-sizing: border-box;
-    overflow: hidden; /* Evita que las barras rompan la web */
+    overflow: hidden; 
     background: transparent;
     border: none;
     margin-bottom: 25px;
@@ -137,6 +136,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     position: relative;
     height: 100%;
     justify-content: flex-end;
+    cursor: pointer; /* Indica que se puede tocar */
+    -webkit-tap-highlight-color: transparent; /* Quita el destello azul en móviles al tocar */
 }
 
 .bar-pill {
@@ -145,13 +146,15 @@ input:checked + .slider:before { transform: translateX(22px); }
     background-color: #e0e0e0; 
     border-radius: 20px; 
     min-height: 15px; 
+    transition: background-color 0.3s ease; /* Transición suave al seleccionar */
     
     transform-origin: bottom;
     animation: growUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0; 
 }
 
-.bar-wrapper:last-child .bar-pill {
+/* La barra activa se vuelve negra */
+.bar-wrapper.active-bar .bar-pill {
     background-color: #000000;
 }
 
@@ -163,7 +166,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     text-align: center;
 }
 
-.bar-wrapper:last-child::before {
+/* Solo la barra activa muestra el número arriba */
+.bar-wrapper.active-bar::before {
     content: attr(data-value) " kg";
     position: absolute;
     top: -25px; 
@@ -172,6 +176,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     color: var(--text);
     font-family: 'Roboto Mono', monospace;
     white-space: nowrap;
+    animation: fadeIn 0.3s ease; /* Aparece suavemente */
 }
 
 @keyframes growUp {
