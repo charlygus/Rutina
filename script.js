@@ -221,6 +221,12 @@ async function enviarPeso() {
     try { await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ accion: 'guardar', peso: p }), headers: { "Content-Type": "text/plain" } }); m.textContent = "DATOS GUARDADOS"; i.value = ''; setTimeout(() => m.textContent = '', 3000); cargarHistorialPeso(); } catch (e) { m.textContent = "ERROR CONEXIÓN"; } finally { b.disabled = false; }
 }
 
+// Nueva función para gestionar el toque en las barras de peso
+window.selectBar = (element) => {
+    document.querySelectorAll('.bar-wrapper').forEach(el => el.classList.remove('active-bar'));
+    element.classList.add('active-bar');
+};
+
 async function cargarHistorialPeso() {
     const chartContainer = document.getElementById('chart_div');
     chartContainer.innerHTML = '<div style="text-align:center; color:#999; font-size:0.8rem; padding-top:100px; width:100%;">Cargando datos...</div>';
@@ -267,27 +273,37 @@ async function cargarHistorialPeso() {
             const scaleMax = maxWeight + (buffer * 0.5); 
 
             let htmlBarras = '';
-            ultimosDatos.forEach(reg => {
+            ultimosDatos.forEach((reg, index) => {
                 const peso = parseFloat(reg.weight || reg.peso);
                 let heightPercent = ((peso - scaleMin) / (scaleMax - scaleMin)) * 100;
                 heightPercent = Math.max(heightPercent, 15); 
 
-                // FIX: Lógica robusta para parsear fechas ISO y otros formatos
+                // FIX: Fecha Premium "15 Feb"
                 let fStr = reg.fecha;
                 try {
-                    let d = new Date(fStr);
-                    if (!isNaN(d.getTime())) {
-                        fStr = d.getDate().toString().padStart(2, '0') + '/' + (d.getMonth() + 1).toString().padStart(2, '0');
-                    } else if (typeof fStr === 'string') {
+                    let d;
+                    if (typeof fStr === 'string' && fStr.includes('/')) {
                         let parts = fStr.split('/');
-                        if(parts.length >= 2) fStr = `${parts[0].padStart(2,'0')}/${parts[1].padStart(2,'0')}`;
+                        d = new Date(`${parts[2] || new Date().getFullYear()}-${parts[1]}-${parts[0]}T12:00:00`);
+                    } else {
+                        d = new Date(fStr);
+                    }
+                    
+                    if (!isNaN(d.getTime())) {
+                        let localeStr = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '').split(' ');
+                        fStr = localeStr[0] + ' ' + localeStr[1].charAt(0).toUpperCase() + localeStr[1].slice(1);
+                    } else {
+                        fStr = String(fStr).substring(0,5);
                     }
                 } catch(e) {
-                    fStr = String(fStr).substring(0,5);
+                    fStr = String(reg.fecha).substring(0,5);
                 }
 
+                const isLast = (index === len - 1);
+                
+                // Añadimos onclick="selectBar(this)" y asignamos active-bar a la última por defecto
                 htmlBarras += `
-                    <div class="bar-wrapper" data-value="${peso.toFixed(1)}">
+                    <div class="bar-wrapper ${isLast ? 'active-bar' : ''}" data-value="${peso.toFixed(1)}" onclick="selectBar(this)">
                         <div class="bar-pill" style="height: ${heightPercent}%;"></div>
                         <span class="bar-label">${fStr}</span>
                     </div>
